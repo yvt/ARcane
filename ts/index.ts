@@ -18,6 +18,9 @@ const renderer = new Renderer(context, logManager);
 
 document.body.appendChild(canvas);
 
-setTimeout(() => {
+setInterval(() => {
+    const rect = canvas.getBoundingClientRect();
+    canvas.width = Math.max(1, rect.width) | 0;
+    canvas.height = Math.max(1, rect.height) | 0;
     renderer.render();
 }, 0);

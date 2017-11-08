@@ -891,7 +891,7 @@ export class RenderPipeline<T>
         // realize buffers.
         // first, delet unneeded buffers
         this.renderBuffers.forEach((info, buffer) => {
-            const allocMapEntry = allocMap.getUnwrap(info);
+            const allocMapEntry = allocMap.get(info, null);
             const requiredCount = allocMapEntry ? allocMapEntry.maxNumAllocated : 0;
             const buffers = buffer.renderBuffers;
             while (buffers.length > requiredCount) {
