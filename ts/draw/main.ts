@@ -9,9 +9,9 @@ export class Renderer
 {
     readonly context: GLContext;
     private readonly profiler: Profiler;
-    readonly pipeline: RenderPipeline<GLContext>;
+    private readonly pipeline: RenderPipeline<GLContext>;
 
-    readonly presentPass: PresentPass;
+    private readonly presentPass: PresentPass;
 
     private lastWidth: number = 0;
     private lastHeight: number = 0;

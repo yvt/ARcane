@@ -3,6 +3,7 @@ import { GLExtensions } from "./extensions";
 import { LogManager } from '../../utils/logger';
 import { TOPICS } from '../log';
 import { GLConstants } from './constants';
+import { VertexAttribState } from './vertexattribenabler';
 
 /**
  * Specifies draw buffers to be drawn into.
@@ -107,6 +108,7 @@ export class GLContext
     private _defFB: GLFramebuffer;
 
     readonly ext: GLExtensions;
+    readonly vertexAttribs: VertexAttribState;
 
     constructor(public readonly gl: WebGLRenderingContext, logManager: LogManager)
     {
@@ -114,6 +116,8 @@ export class GLContext
 
         // default framebuffer
         this._fb = this._defFB = new GLFramebuffer(this, null);
+
+        this.vertexAttribs = new VertexAttribState(gl);
     }
 
     /**
