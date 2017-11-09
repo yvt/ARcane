@@ -80,6 +80,18 @@ export const enum GLDrawBufferFlags
         Color4 | Color5 | Color6 | Color7
 }
 
+export const enum GLStateFlags
+{
+    Default = 0,
+
+    DepthTestEnabled = 1 << 0,
+    StencilTestEnabled = 1 << 1,
+    BlendEnabled = 1 << 2,
+    CullFaceDisabled = 1 << 3,
+    FrontFaceCW = 1 << 4,
+    ScissorTestEnabled = 1 << 5,
+}
+
 /**
  * Wrapper class of `WebGLRenderingContext` that manages the context state.
  *
@@ -106,6 +118,7 @@ export class GLContext
         GLDrawBufferFlags.Stencil;
     private _fb: GLFramebuffer;
     private _defFB: GLFramebuffer;
+    private _state = GLStateFlags.Default;
 
     readonly ext: GLExtensions;
     readonly vertexAttribs: VertexAttribState;
@@ -148,6 +161,7 @@ export class GLContext
     {
         const {
             drawBuffers,
+            states,
             gl
         } = this;
         this.framebuffer = null;
@@ -162,6 +176,90 @@ export class GLContext
             !!(drawBuffers & GLDrawBufferFlags.ColorAlpha));
         gl.bindFramebuffer(GLConstants.FRAMEBUFFER, this._fb.handle);
         setDrawBuffers(this, drawBuffers);
+
+        if (states & GLStateFlags.BlendEnabled) {
+            gl.enable(GLConstants.BLEND);
+        } else {
+            gl.disable(GLConstants.BLEND);
+        }
+        if (states & GLStateFlags.DepthTestEnabled) {
+            gl.enable(GLConstants.DEPTH_TEST);
+        } else {
+            gl.disable(GLConstants.DEPTH_TEST);
+        }
+        if (states & GLStateFlags.StencilTestEnabled) {
+            gl.enable(GLConstants.STENCIL_TEST);
+        } else {
+            gl.disable(GLConstants.STENCIL_TEST);
+        }
+        if (states & GLStateFlags.CullFaceDisabled) {
+            gl.disable(GLConstants.CULL_FACE);
+        } else {
+            gl.enable(GLConstants.CULL_FACE);
+        }
+        if (states & GLStateFlags.FrontFaceCW) {
+            gl.frontFace(GLConstants.CW);
+        } else {
+            gl.frontFace(GLConstants.CCW);
+        }
+        if (states & GLStateFlags.ScissorTestEnabled) {
+            gl.enable(GLConstants.SCISSOR_TEST);
+        } else {
+            gl.disable(GLConstants.SCISSOR_TEST);
+        }
+    }
+
+    get states(): GLStateFlags
+    {
+        return this._state;
+    }
+    set states(newFlags: GLStateFlags)
+    {
+        const {gl} = this;
+        const diff = newFlags ^ this.drawBuffers;
+        if (diff & GLStateFlags.BlendEnabled) {
+            if (newFlags & GLStateFlags.BlendEnabled) {
+                gl.enable(GLConstants.BLEND);
+            } else {
+                gl.disable(GLConstants.BLEND);
+            }
+        }
+        if (diff & GLStateFlags.DepthTestEnabled) {
+            if (newFlags & GLStateFlags.DepthTestEnabled) {
+                gl.enable(GLConstants.DEPTH_TEST);
+            } else {
+                gl.disable(GLConstants.DEPTH_TEST);
+            }
+        }
+        if (diff & GLStateFlags.StencilTestEnabled) {
+            if (newFlags & GLStateFlags.StencilTestEnabled) {
+                gl.enable(GLConstants.STENCIL_TEST);
+            } else {
+                gl.disable(GLConstants.STENCIL_TEST);
+            }
+        }
+        if (diff & GLStateFlags.CullFaceDisabled) {
+            if (newFlags & GLStateFlags.CullFaceDisabled) {
+                gl.disable(GLConstants.CULL_FACE);
+            } else {
+                gl.enable(GLConstants.CULL_FACE);
+            }
+        }
+        if (diff & GLStateFlags.FrontFaceCW) {
+            if (newFlags & GLStateFlags.FrontFaceCW) {
+                gl.frontFace(GLConstants.CW);
+            } else {
+                gl.frontFace(GLConstants.CCW);
+            }
+        }
+        if (diff & GLStateFlags.ScissorTestEnabled) {
+            if (newFlags & GLStateFlags.ScissorTestEnabled) {
+                gl.enable(GLConstants.SCISSOR_TEST);
+            } else {
+                gl.disable(GLConstants.SCISSOR_TEST);
+            }
+        }
+        this._state = newFlags;
     }
 
     /**

@@ -11,6 +11,8 @@ import {
     ShaderParameter
 } from "./shadertoolkit";
 
+import { GLContext } from '../globjs/context';
+
 /**
  * Constructs a typed shader object with a given factory function of shader
  * module.
@@ -64,7 +66,7 @@ export class TypedShader
      * @return [[TypedShaderInstance]] that holds the compiled shader and
      *         associated [[ShaderChunkInstance]]s.
      */
-    compile(gl: WebGLRenderingContext): TypedShaderInstance<TInstance, TParameter>
+    compile(gl: GLContext): TypedShaderInstance<TInstance, TParameter>
     {
         const inst = this.shader.compile(gl);
         return new TypedShaderInstance<TInstance, TParameter>(inst,
@@ -133,6 +135,11 @@ export class TypedShaderInstance
     apply(parameterSet: TypedShaderParameter<TParameter>): void
     {
         this.inst.apply(parameterSet.untypedParameter);
+    }
+
+    get program()
+    {
+        return this.inst.program;
     }
 }
 

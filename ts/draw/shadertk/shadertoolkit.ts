@@ -1,5 +1,7 @@
 
-import { GLProgram } from "../globjs/shader";
+import { GLProgram, GLShader } from '../globjs/shader';
+import { GLContext } from '../globjs/context';
+import { GLConstants } from '../globjs/constants';
 
 /**
  * Constructs a shader object with given factory functions of shader modules.
@@ -10,7 +12,7 @@ export function buildShader(roots: ShaderModuleFactory<any>[]): Shader
 {
     const builder = new ShaderBuilderImpl();
     for (const root of roots) {
-        root(builder);
+        builder.requireModule(root);
     }
     return builder.finalize();
 }
@@ -40,7 +42,7 @@ export abstract class Shader
      * @return [[ShaderInstance]] that holds the compiled shader and
      *         associated [[ShaderChunkInstance]]s.
      */
-    abstract compile(gl: WebGLRenderingContext): ShaderInstance;
+    abstract compile(gl: GLContext): ShaderInstance;
 }
 
 /**
@@ -151,6 +153,8 @@ export interface ShaderInstanceBuilder
      */
     readonly program: GLProgram;
 
+    readonly context: GLContext;
+
     // TODO: more contextual info; like texture manager?
 
     /**
@@ -232,12 +236,16 @@ class ShaderImpl extends Shader
         TInstance extends ShaderChunkInstance<TParameter>, TParameter>
         (factory: ShaderModuleFactory<TModule>): TModule
     {
-        return <TModule> this._moduleMap.get(factory);
+        const m = this._moduleMap.get(factory);
+        if (!m) {
+            throw new Error("The module was not found");
+        }
+        return <TModule> m;
     }
 
-    compile(gl: WebGLRenderingContext): ShaderInstance
+    compile(context: GLContext): ShaderInstance
     {
-        return new ShaderInstanceBuilderImpl(this._chunks).finalize();
+        return new ShaderInstanceBuilderImpl(this._chunks, context).finalize();
     }
 }
 
@@ -248,10 +256,22 @@ class ShaderInstanceBuilderImpl implements ShaderInstanceBuilder
     private _inst = new ShaderInstanceImpl();
     private _nextTexStage = 0;
 
-    constructor(private chunks: ShaderChunk<any, any>[])
+    constructor(private chunks: ShaderChunk<any, any>[], public readonly context: GLContext)
     {
-        // TODO: compiler GLProgram
-        // this._inst._glProgram = blah blah somepony
+        // Compile GLProgram
+        const fsParts: string[] = [];
+        const vsParts: string[] = [];
+
+        for (const chunk of chunks) {
+            fsParts.push(chunk.emit(), "\n\n");
+            vsParts.push(chunk.emit(), "\n\n");
+            fsParts.push(chunk.emitFrag(), "\n\n");
+            vsParts.push(chunk.emitVert(), "\n\n");
+        }
+
+        const fs = GLShader.compile(context, fsParts.join(''), GLConstants.FRAGMENT_SHADER);
+        const vs = GLShader.compile(context, vsParts.join(''), GLConstants.VERTEX_SHADER);
+        this._inst._glProgram = GLProgram.link(context, [fs, vs]);
 
         // make sure all instances are created
         for (const chunk of chunks) {
@@ -310,7 +330,11 @@ class ShaderInstanceImpl extends ShaderInstance
     get<TInstance extends ShaderChunkInstance<TParam>, TParam>
         (chunk: ShaderChunk<TInstance, TParam>): TInstance
     {
-        return <TInstance> this._instMap.get(chunk);
+        const inst = this._instMap.get(chunk);
+        if (!inst) {
+            throw new Error("The instance was not found");
+        }
+        return <TInstance> inst;
     }
 
     createParameter(): ShaderParameter

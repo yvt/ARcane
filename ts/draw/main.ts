@@ -4,14 +4,18 @@ import { RenderPipeline, RenderOperation, dumpRenderOperationAsDot } from "./sch
 import { GLContext } from "./globjs/context";
 import { TOPICS } from "./log";
 import { PresentPass } from './passes/present';
+import { RaytracePass } from './passes/raytrace';
+import { QuadRenderer } from './quad';
 
 export class Renderer
 {
     readonly context: GLContext;
     private readonly profiler: Profiler;
     private readonly pipeline: RenderPipeline<GLContext>;
+    readonly quad: QuadRenderer;
 
     private readonly presentPass: PresentPass;
+    private readonly raytracePass: RaytracePass;
 
     private lastWidth: number = 0;
     private lastHeight: number = 0;
@@ -21,12 +25,17 @@ export class Renderer
         this.context = new GLContext(gl, log);
         this.profiler = new Profiler(this.context.ext.EXT_disjoint_timer_query, log.getLogger(TOPICS.PROFILER));
         this.pipeline = new RenderPipeline(log.getLogger(TOPICS.SCHEDULER), this.profiler, this.context);
+        this.quad = new QuadRenderer(this.context);
 
         this.presentPass = new PresentPass(this.context);
+        this.raytracePass = new RaytracePass(this);
     }
 
     dispose(): void
     {
+        this.presentPass.dispose();
+        this.raytracePass.dispose();
+
         this.pipeline.releaseAll();
         this.profiler.dispose();
     }
@@ -35,7 +44,7 @@ export class Renderer
     {
         const ops: RenderOperation<GLContext>[] = [];
 
-        const output = this.presentPass.setup(ops);
+        const output = this.raytracePass.setup(ops);
 
         const logger = this.log.getLogger(TOPICS.SCHEDULER);
         if (logger.isEnabled) {
