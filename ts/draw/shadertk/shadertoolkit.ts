@@ -531,6 +531,11 @@ export abstract class ShaderChunkInstance<TParameter>
         }
     }
 
+    get context(): GLContext
+    {
+        return this._builder.context;
+    }
+
     /**
      * Creates a parameter object for this chunk (module/object).
      * Overridden by a derived class.

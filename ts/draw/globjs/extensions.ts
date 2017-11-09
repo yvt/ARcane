@@ -6,6 +6,7 @@ import { GLFramebuffer } from './framebuffer';
 export class GLExtensions
 {
     readonly EXT_sRGB: any | null;
+    readonly EXT_frag_depth: EXT_frag_depth | null;
     readonly OES_texture_float: OES_texture_float | null;
     readonly OES_texture_float_linear: OES_texture_float_linear | null;
     readonly OES_texture_half_float: OES_texture_half_float | null;
@@ -22,6 +23,7 @@ export class GLExtensions
         log.log(`WebGL extensions:`);
         for (const name of [
             'EXT_sRGB',
+            'EXT_frag_depth',
             'OES_texture_float',
             'OES_texture_float_linear',
             'OES_texture_half_float',

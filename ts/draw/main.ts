@@ -6,6 +6,7 @@ import { TOPICS } from "./log";
 import { PresentPass } from './passes/present';
 import { RaytracePass } from './passes/raytrace';
 import { QuadRenderer } from './quad';
+import { Scene } from './model';
 
 export class Renderer
 {
@@ -19,6 +20,8 @@ export class Renderer
 
     private lastWidth: number = 0;
     private lastHeight: number = 0;
+
+    readonly scene = new Scene();
 
     constructor(public readonly gl: WebGLRenderingContext, public readonly log: LogManager)
     {
