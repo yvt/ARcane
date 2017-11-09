@@ -1,5 +1,6 @@
 import { Logger } from '../../utils/logger';
 import { GLContext } from './context';
+import { GLConstants} from './constants';
 import { GLFramebuffer } from './framebuffer';
 
 export class GLExtensions
@@ -56,18 +57,18 @@ function detectHalfFloatColorBufferSupport(context: GLContext, log: Logger): boo
     }
 
     try {
-        gl.bindTexture(gl.TEXTURE_2D, tex);
+        gl.bindTexture(GLConstants.TEXTURE_2D, tex);
         while (gl.getError()); // clear error
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, 7, 7, 0,
-            gl.RGBA, halfFloat.HALF_FLOAT_OES, null);
+        gl.texImage2D(GLConstants.TEXTURE_2D, 0, GLConstants.RGBA, 7, 7, 0,
+            GLConstants.RGBA, halfFloat.HALF_FLOAT_OES, null);
         if (gl.getError()) {
             log.warn("detectHalfFloatColorBufferSupport: could not create half float texture.");
             return false;
         }
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.NEAREST);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.NEAREST);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.NEAREST);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_S, GLConstants.CLAMP_TO_EDGE);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.CLAMP_TO_EDGE);
 
         const fb = GLFramebuffer.createFramebuffer(context, {
             colors: [tex]

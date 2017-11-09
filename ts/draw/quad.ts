@@ -1,4 +1,5 @@
 import { GLContext } from "./globjs/context";
+import { GLConstants } from "./globjs/constants";
 
 export class QuadRenderer
 {
@@ -9,11 +10,11 @@ export class QuadRenderer
         const gl = context.gl;
         this.buffer = gl.createBuffer()!;
 
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
+        gl.bindBuffer(GLConstants.ARRAY_BUFFER, this.buffer);
         const vertices = new Uint8Array([
             -1, -1, 1, -1, -1, 1, 1, 1
         ]);
-        gl.bufferData(gl.ARRAY_BUFFER, vertices, gl.STATIC_DRAW);
+        gl.bufferData(GLConstants.ARRAY_BUFFER, vertices, GLConstants.STATIC_DRAW);
     }
 
     dispose(): void
@@ -26,8 +27,8 @@ export class QuadRenderer
     {
         const {gl} = this.context;
         this.context.vertexAttribs.toggleAllWithTrueIndex(attr);
-        gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-        gl.vertexAttribPointer(attr, 2, gl.BYTE, false, 2, 0);
-        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        gl.bindBuffer(GLConstants.ARRAY_BUFFER, this.buffer);
+        gl.vertexAttribPointer(attr, 2, GLConstants.BYTE, false, 2, 0);
+        gl.drawArrays(GLConstants.TRIANGLE_STRIP, 0, 4);
     }
 }

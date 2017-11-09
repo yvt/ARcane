@@ -1,5 +1,6 @@
 import { IDisposable } from "../../utils/interfaces";
 import { GLContext, GLDrawBufferFlags } from './context';
+import { GLConstants } from './constants';
 
 export interface GLFramebufferAttachments
 {
@@ -32,40 +33,40 @@ export class GLFramebuffer implements IDisposable
         const gl = context.gl;
 
         if (texTarget == null) {
-            texTarget = gl.TEXTURE_2D;
+            texTarget = GLConstants.TEXTURE_2D;
         }
 
         const handle = gl.createFramebuffer();
         if (!handle) {
             throw new Error();
         }
-        gl.bindFramebuffer(gl.FRAMEBUFFER, handle);
+        gl.bindFramebuffer(GLConstants.FRAMEBUFFER, handle);
 
         if (attachments.depth != null) {
             if (attachments.depth instanceof WebGLTexture) {
-                gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.DEPTH_STENCIL_ATTACHMENT,
-                    gl.TEXTURE_2D, attachments.depth, 0);
+                gl.framebufferTexture2D(GLConstants.FRAMEBUFFER, GLConstants.DEPTH_STENCIL_ATTACHMENT,
+                    GLConstants.TEXTURE_2D, attachments.depth, 0);
             } else if (attachments.depth instanceof WebGLRenderbuffer) {
-                gl.framebufferRenderbuffer(gl.FRAMEBUFFER, gl.DEPTH_ATTACHMENT,
-                    gl.RENDERBUFFER, attachments.depth);
+                gl.framebufferRenderbuffer(GLConstants.FRAMEBUFFER, GLConstants.DEPTH_ATTACHMENT,
+                    GLConstants.RENDERBUFFER, attachments.depth);
             }
         }
 
         const colors = attachments.colors;
         if (colors.length == 1) {
-            gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0,
+            gl.framebufferTexture2D(GLConstants.FRAMEBUFFER, GLConstants.COLOR_ATTACHMENT0,
                 texTarget, colors[0], 0);
         } else {
             const ext = <WebGLDrawBuffers> gl.getExtension("WEBGL_draw_buffers");
             for (let i = 0; i < colors.length; ++i) {
-                gl.framebufferTexture2D(gl.FRAMEBUFFER, ext.COLOR_ATTACHMENT0_WEBGL + i,
+                gl.framebufferTexture2D(GLConstants.FRAMEBUFFER, ext.COLOR_ATTACHMENT0_WEBGL + i,
                     texTarget, colors[i], 0);
             }
         }
 
-        const status = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+        const status = gl.checkFramebufferStatus(GLConstants.FRAMEBUFFER);
 
-        if (status != gl.FRAMEBUFFER_COMPLETE) {
+        if (status != GLConstants.FRAMEBUFFER_COMPLETE) {
             gl.deleteFramebuffer(handle);
             throw new Error(`incomplete framebuffer: ${status}`);
         }
