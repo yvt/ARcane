@@ -168,6 +168,9 @@ export interface ShaderInstanceBuilder
     get<TInstance extends ShaderChunkInstance<TParameter>, TParameter>
         (mod: ShaderChunk<TInstance, TParameter>): TInstance | null;
 
+    getUnwrap<TInstance extends ShaderChunkInstance<TParameter>, TParameter>
+        (mod: ShaderChunk<TInstance, TParameter>): TInstance;
+
     /**
      * Allocates a texture stage.
      *
@@ -194,6 +197,8 @@ export interface ShaderParameterBuilder
      * @return The parameter object.
      */
     get<TParameter>(mod: ShaderChunkInstance<TParameter>): TParameter | null;
+
+    getUnwrap<TParameter>(mod: ShaderChunkInstance<TParameter>): TParameter;
 }
 
 const circularReferenceTag: any = {};
@@ -273,6 +278,8 @@ class ShaderInstanceBuilderImpl implements ShaderInstanceBuilder
         const vs = GLShader.compile(context, vsParts.join(''), GLConstants.VERTEX_SHADER);
         this._inst._glProgram = GLProgram.link(context, [fs, vs]);
 
+        context.gl.useProgram(this._inst._glProgram.handle);
+
         // make sure all instances are created
         for (const chunk of chunks) {
             this.get(chunk);
@@ -297,6 +304,16 @@ class ShaderInstanceBuilderImpl implements ShaderInstanceBuilder
         }
         if (inst === circularReferenceTag) {
              throw new Error("circular reference was found");
+        }
+        return inst;
+    }
+
+    getUnwrap<TInstance extends ShaderChunkInstance<TParameter>, TParameter>
+        (mod: ShaderChunk<TInstance, TParameter>): TInstance
+    {
+        const inst = this.get(mod);
+        if (!inst) {
+            throw new Error();
         }
         return inst;
     }
@@ -392,6 +409,15 @@ class ShaderParameterBuilderImpl implements ShaderParameterBuilder
         }
         if (param === circularReferenceTag) {
             throw new Error("circular reference was found");
+        }
+        return param;
+    }
+
+    getUnwrap<TParameter>(inst: ShaderChunkInstance<TParameter> | null): TParameter
+    {
+        const param = this.get(inst);
+        if (!param) {
+            throw new Error();
         }
         return param;
     }

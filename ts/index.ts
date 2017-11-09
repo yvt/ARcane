@@ -27,8 +27,8 @@ setInterval(() => {
     const t = Date.now() / 1000;
     mat4.lookAt(
         renderer.scene.viewMatrix,
-        [Math.cos(t) * 3, 2, Math.sin(t) * 3],
-        [0, 0, 0],
+        [128 + Math.cos(t) * 300, 300, 128 + Math.sin(t) * 300],
+        [128, 128, 128],
         [0, 1, 0],
     );
     mat4.perspective(
@@ -36,7 +36,7 @@ setInterval(() => {
         1.0,
         canvas.width / canvas.height,
         1,
-        100
+        1000
     );
     renderer.render();
 }, 0);

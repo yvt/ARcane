@@ -7,6 +7,7 @@ import { PresentPass } from './passes/present';
 import { RaytracePass } from './passes/raytrace';
 import { QuadRenderer } from './quad';
 import { Scene } from './model';
+import { VoxelData } from './voxeldata';
 
 export class Renderer
 {
@@ -22,6 +23,7 @@ export class Renderer
     private lastHeight: number = 0;
 
     readonly scene = new Scene();
+    readonly voxel: VoxelData;
 
     constructor(public readonly gl: WebGLRenderingContext, public readonly log: LogManager)
     {
@@ -29,6 +31,8 @@ export class Renderer
         this.profiler = new Profiler(this.context.ext.EXT_disjoint_timer_query, log.getLogger(TOPICS.PROFILER));
         this.pipeline = new RenderPipeline(log.getLogger(TOPICS.SCHEDULER), this.profiler, this.context);
         this.quad = new QuadRenderer(this.context);
+
+        this.voxel = new VoxelData(this.context);
 
         this.presentPass = new PresentPass(this.context);
         this.raytracePass = new RaytracePass(this);
@@ -38,6 +42,8 @@ export class Renderer
     {
         this.presentPass.dispose();
         this.raytracePass.dispose();
+
+        this.voxel.dispose();
 
         this.pipeline.releaseAll();
         this.profiler.dispose();
