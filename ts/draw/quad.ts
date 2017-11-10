@@ -36,7 +36,7 @@ export class QuadRenderer
         }
 
         const vertices = new Int16Array(newSize * 16);
-        const indices = new Uint16Array(newSize * 5);
+        const indices = new Uint16Array(newSize * 6);
 
         for (let i = 0; i < newSize; ++i) {
             vertices[i * 16] = -1;
@@ -55,11 +55,12 @@ export class QuadRenderer
             vertices[i * 16 + 13] = 1;
             vertices[i * 16 + 14] = i;
 
-            indices[i * 5] = i * 4;
-            indices[i * 5 + 1] = i * 4 + 1;
-            indices[i * 5 + 2] = i * 4 + 2;
-            indices[i * 5 + 3] = i * 4 + 3;
-            indices[i * 5 + 4] = 0xffff; // primitive restart
+            indices[i * 6] = i * 4;
+            indices[i * 6 + 1] = i * 4 + 1;
+            indices[i * 6 + 2] = i * 4 + 2;
+            indices[i * 6 + 3] = i * 4 + 1;
+            indices[i * 6 + 4] = i * 4 + 3;
+            indices[i * 6 + 5] = i * 4 + 2;
         }
 
         gl.bindBuffer(GLConstants.ARRAY_BUFFER, this.buffer);
@@ -95,6 +96,6 @@ export class QuadRenderer
         gl.bindBuffer(GLConstants.ARRAY_BUFFER, this.buffer);
         gl.bindBuffer(GLConstants.ELEMENT_ARRAY_BUFFER, this.indexBuffer);
         gl.vertexAttribPointer(attr, 4, GLConstants.SHORT, false, 8, 0);
-        gl.drawElements(GLConstants.TRIANGLE_STRIP, 5 * count - 1, GLConstants.UNSIGNED_SHORT, start * 10);
+        gl.drawElements(GLConstants.TRIANGLES, 6 * count, GLConstants.UNSIGNED_SHORT, start * 12);
     }
 }
