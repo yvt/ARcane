@@ -186,7 +186,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                     (voxel.xy + 0.5) * (1.0 / 4096.0) +
                     vec2(sz1, sz2) * (256.0 / 4096.0);
 
-                return texture2D(${this.densityTexture.u_Texture}, mapped).w;
+                return texture2DLodEXT(${this.densityTexture.u_Texture}, mapped, 0.0).w;
             }
 
             // Coordinates are specified in the voxel data space

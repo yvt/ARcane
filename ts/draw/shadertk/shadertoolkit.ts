@@ -264,7 +264,9 @@ class ShaderInstanceBuilderImpl implements ShaderInstanceBuilder
     constructor(private chunks: ShaderChunk<any, any>[], public readonly context: GLContext)
     {
         // Compile GLProgram
-        const fsParts: string[] = [];
+        const fsParts: string[] = [
+            '#extension GL_EXT_shader_texture_lod : enable\n\n'
+        ];
         const vsParts: string[] = [];
 
         for (const chunk of chunks) {
