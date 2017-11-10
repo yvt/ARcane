@@ -164,7 +164,6 @@ export class GLContext
             states,
             gl
         } = this;
-        this.framebuffer = null;
         gl.depthMask(!!(drawBuffers & GLDrawBufferFlags.Depth));
         // We don't manage stencil mask; just write somewrite or no write at all
         if (!(drawBuffers & GLDrawBufferFlags.Stencil)) {
@@ -300,7 +299,7 @@ function setDrawBuffers(context: GLContext, flags: GLDrawBufferFlags): void
     let arraySize = 0;
     for (let i = 0; i < 8; ++i) {
         if (flags & (GLDrawBufferFlags.Color0 << i)) {
-            arraySize = i;
+            arraySize = i + 1;
         }
     }
     if (flags & (GLDrawBufferFlags.BackColor)) {
