@@ -5,6 +5,7 @@ if (process.env.NODE_ENV !== 'production') {
     logManager.enableAllTopics();
 }
 
+const Stats = require('stats-js');
 import { mat4 } from 'gl-matrix';
 import { Renderer } from './draw/main';
 
@@ -15,9 +16,15 @@ if (!context) {
     throw new Error("failed to create a WebGL context.");
 }
 
-const renderer = new Renderer(context, logManager);
+const stats = new Stats();
+stats.setMode(0);
+stats.domElement.style.position = 'fixed';
+stats.domElement.style.left = '0px';
+stats.domElement.style.top = '0px';
 
+const renderer = new Renderer(context, logManager);
 document.body.appendChild(canvas);
+document.body.appendChild(stats.domElement);
 
 function render() {
     const rect = canvas.getBoundingClientRect();
@@ -38,7 +45,10 @@ function render() {
         1,
         1000
     );
+
+    stats.begin();
     renderer.render();
+    stats.end();
 }
 
 function update() {
