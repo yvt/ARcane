@@ -35,6 +35,11 @@ export class Renderer
     constructor(public readonly gl: WebGLRenderingContext, public readonly log: LogManager)
     {
         this.context = new GLContext(gl, log);
+
+        if (!this.context.ext.EXT_shader_texture_lod) {
+            throw new Error("EXT_shader_texture_lod is not supported. Cannot proceed.");
+        }
+
         this.profiler = new Profiler(this.context.ext.EXT_disjoint_timer_query, log.getLogger(TOPICS.PROFILER));
         this.pipeline = new RenderPipeline(log.getLogger(TOPICS.SCHEDULER), this.profiler, this.context);
         this.quad = new QuadRenderer(this.context);
