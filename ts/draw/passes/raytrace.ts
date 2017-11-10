@@ -21,8 +21,8 @@ import {
 import { allocateIdentifier } from '../shadertk/uniqueid';
 
 import {
-    Texture2DShaderObject, Texture2DShaderInstance, TextureShaderParameter
-} from '../shaderutils/texture';
+    VoxelDataShaderObject, VoxelDataShaderInstance, VoxelDataShaderParam
+} from '../shaderutils/voxel';
 
 export interface RaytraceContext
 {
@@ -94,7 +94,7 @@ class RaytraceOperator implements RenderOperator
         const params = this.shaderParams.root;
         mat4.mul(params.viewProjMat, scene.projectionMatrix, scene.viewMatrix);
         mat4.invert(params.invViewProjMat, params.viewProjMat);
-        params.densityTexture.texture = voxel.densityTex;
+        params.voxelData.voxelData = voxel;
 
         context.framebuffer = null;
         context.states = GLStateFlags.Default;
@@ -117,7 +117,7 @@ interface RaytraceShaderParam
 {
     viewProjMat: mat4;
     invViewProjMat: mat4;
-    densityTexture: TextureShaderParameter;
+    voxelData: VoxelDataShaderParam;
 }
 
 class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, RaytraceShaderParam>
@@ -126,13 +126,13 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
     readonly u_InvViewProjMat = allocateIdentifier();
     readonly u_ViewProjMat = allocateIdentifier();
 
-    readonly densityTexture: Texture2DShaderObject;
+    readonly voxelData: VoxelDataShaderObject;
 
     constructor(builder: ShaderBuilder)
     {
         super(builder);
 
-        this.densityTexture = new Texture2DShaderObject(builder, 'mediump');
+        this.voxelData = new VoxelDataShaderObject(builder);
 
         this.register();
     }
@@ -144,11 +144,10 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
 
     private readonly voxelTrace = allocateIdentifier();
     private readonly clipRay = allocateIdentifier();
-    private readonly fetchVoxel = allocateIdentifier();
 
     emitFrag()
     {
-        const {voxelTrace, clipRay, fetchVoxel} = this;
+        const {voxelTrace, clipRay} = this;
         return `
             uniform highp mat4 ${this.u_ViewProjMat};
 
@@ -177,16 +176,6 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                     distance /= dot(rayDir, planeNormal);
                     rayEnd -= distance * rayDir;
                 }
-            }
-
-            mediump float ${fetchVoxel}(highp vec3 voxel) {
-                highp float sz1 = fract(voxel.z * (1.0 / 16.0)) * 16.0;
-                highp float sz2 = floor(voxel.z * (1.0 / 16.0));
-                highp vec2 mapped =
-                    (voxel.xy + 0.5) * (1.0 / 4096.0) +
-                    vec2(sz1, sz2) * (256.0 / 4096.0);
-
-                return texture2DLodEXT(${this.densityTexture.u_Texture}, mapped, 0.0).w;
             }
 
             // Coordinates are specified in the voxel data space
@@ -221,7 +210,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                 highp vec3 nextPlaneT = abs((nextPlane - rayStart) / rayDir);
 
                 for (mediump int i = 0; i < 512; ++i) {
-                    mediump float dens = ${fetchVoxel}(voxel);
+                    mediump float dens = ${this.voxelData.fetchVoxel}(voxel, 0.0);
                     if (dens > 0.5) {
                         hitVoxel = voxel;
                         return true;
@@ -261,11 +250,11 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                 highp vec3 hitVoxel;
                 if (${voxelTrace}(rayStart, rayEnd, hitVoxel)) {
                     // Derive the normal using the partial derivatives
-                    mediump float val1 = ${fetchVoxel}(hitVoxel);
+                    mediump float val1 = ${this.voxelData.fetchVoxel}(hitVoxel, 0.0);
                     mediump vec3 neighbor = vec3(
-                        ${fetchVoxel}(hitVoxel + vec3(1.0, 0.0, 0.0)),
-                        ${fetchVoxel}(hitVoxel + vec3(0.0, 1.0, 0.0)),
-                        ${fetchVoxel}(hitVoxel + vec3(0.0, 0.0, 1.0))
+                        ${this.voxelData.fetchVoxel}(hitVoxel + vec3(1.0, 0.0, 0.0), 0.0),
+                        ${this.voxelData.fetchVoxel}(hitVoxel + vec3(0.0, 1.0, 0.0), 0.0),
+                        ${this.voxelData.fetchVoxel}(hitVoxel + vec3(0.0, 0.0, 1.0), 0.0)
                     );
                     mediump vec3 normal = normalize(val1 - neighbor);
 
@@ -316,7 +305,7 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
     readonly u_InvViewProjMat: WebGLUniformLocation;
     readonly u_ViewProjMat: WebGLUniformLocation;
 
-    private readonly densityTexture: Texture2DShaderInstance;
+    private readonly voxelData: VoxelDataShaderInstance;
 
     constructor(builder: ShaderInstanceBuilder, parent: RaytraceShaderModule)
     {
@@ -327,7 +316,7 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
         this.u_InvViewProjMat = gl.getUniformLocation(builder.program.handle, parent.u_InvViewProjMat)!;
         this.u_ViewProjMat = gl.getUniformLocation(builder.program.handle, parent.u_ViewProjMat)!;
 
-        this.densityTexture = builder.getUnwrap(parent.densityTexture);
+        this.voxelData = builder.getUnwrap(parent.voxelData);
     }
 
     createParameter(builder: ShaderParameterBuilder): RaytraceShaderParam
@@ -335,7 +324,7 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
         return {
             viewProjMat: mat4.create(),
             invViewProjMat: mat4.create(),
-            densityTexture: builder.getUnwrap(this.densityTexture),
+            voxelData: builder.getUnwrap(this.voxelData),
         };
     }
 
