@@ -19,15 +19,15 @@ const renderer = new Renderer(context, logManager);
 
 document.body.appendChild(canvas);
 
-setInterval(() => {
+function render() {
     const rect = canvas.getBoundingClientRect();
     canvas.width = Math.max(1, rect.width) | 0;
     canvas.height = Math.max(1, rect.height) | 0;
 
-    const t = Date.now() / 1000;
+    const t = Date.now() / 3000;
     mat4.lookAt(
         renderer.scene.viewMatrix,
-        [128 + Math.cos(t) * 300, 300, 128 + Math.sin(t) * 300],
+        [128 + Math.cos(t) * 100, 300, 128 + Math.sin(t) * 100],
         [128, 128, 128],
         [0, 1, 0],
     );
@@ -39,4 +39,10 @@ setInterval(() => {
         1000
     );
     renderer.render();
-}, 0);
+}
+
+function update() {
+    render();
+    requestAnimationFrame(update);
+}
+update();
