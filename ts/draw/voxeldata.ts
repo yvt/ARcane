@@ -2,18 +2,65 @@ import { IDisposable } from "../utils/interfaces";
 import { GLContext } from './globjs/context';
 import { GLConstants } from './globjs/constants';
 
-export class VoxelData implements IDisposable
-{
-    readonly densityTex: WebGLTexture;
+import { Blitter } from './subpasses/blit';
 
-    constructor(private readonly context: GLContext)
+export interface VoxelDataContext
+{
+    readonly context: GLContext;
+    readonly blitter: Blitter;
+}
+
+export class VoxelDataManager implements IDisposable
+{
+    /** Temporary image storage used to generate a mip pyramid. */
+    private readonly tempTex: WebGLTexture;
+
+    constructor(public readonly context: VoxelDataContext)
     {
-        const {gl} = context;
+        const {gl} = context.context;
+
+        this.tempTex = gl.createTexture()!;
+        gl.bindTexture(GLConstants.TEXTURE_2D, this.tempTex);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.NEAREST);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.NEAREST);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_S, GLConstants.CLAMP_TO_EDGE);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.CLAMP_TO_EDGE);
+
+        gl.texImage2D(GLConstants.TEXTURE_2D, 0, GLConstants.ALPHA, 2048, 2048, 0,
+            GLConstants.ALPHA, GLConstants.UNSIGNED_BYTE, null);
+    }
+
+    dispose(): void
+    {
+        const {gl} = this.context.context;
+        gl.deleteTexture(this.tempTex);
+    }
+
+    createVoxelData(): VoxelData
+    {
+        return new VoxelDataImpl(this.context);
+    }
+}
+
+export abstract class VoxelData implements IDisposable
+{
+    densityTex: WebGLTexture;
+
+    abstract dispose(): void;
+}
+
+class VoxelDataImpl extends VoxelData
+{
+    constructor(private readonly context: VoxelDataContext)
+    {
+        super();
+
+        const {gl} = context.context;
 
         this.densityTex = gl.createTexture()!;
         gl.bindTexture(GLConstants.TEXTURE_2D, this.densityTex);
-        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.LINEAR);
-        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.LINEAR);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.NEAREST);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.NEAREST);
         gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_S, GLConstants.CLAMP_TO_EDGE);
         gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.CLAMP_TO_EDGE);
 
@@ -46,8 +93,7 @@ export class VoxelData implements IDisposable
 
     dispose(): void
     {
-        const {gl} = this.context;
-
+        const {gl} = this.context.context;
         gl.deleteTexture(this.densityTex);
     }
 }

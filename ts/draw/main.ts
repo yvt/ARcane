@@ -3,18 +3,24 @@ import { Profiler } from "./profiler";
 import { RenderPipeline, RenderOperation, dumpRenderOperationAsDot } from "./scheduler";
 import { GLContext } from "./globjs/context";
 import { TOPICS } from "./log";
+
+import { QuadRenderer } from './quad';
+import { Blitter } from './subpasses/blit';
+
 import { PresentPass } from './passes/present';
 import { RaytracePass } from './passes/raytrace';
-import { QuadRenderer } from './quad';
+
 import { Scene } from './model';
-import { VoxelData } from './voxeldata';
+import { VoxelData, VoxelDataManager } from './voxeldata';
 
 export class Renderer
 {
     readonly context: GLContext;
     private readonly profiler: Profiler;
     private readonly pipeline: RenderPipeline<GLContext>;
+
     readonly quad: QuadRenderer;
+    readonly blitter: Blitter;
 
     private readonly presentPass: PresentPass;
     private readonly raytracePass: RaytracePass;
@@ -23,6 +29,7 @@ export class Renderer
     private lastHeight: number = 0;
 
     readonly scene = new Scene();
+    readonly voxelManager: VoxelDataManager;
     readonly voxel: VoxelData;
 
     constructor(public readonly gl: WebGLRenderingContext, public readonly log: LogManager)
@@ -31,8 +38,10 @@ export class Renderer
         this.profiler = new Profiler(this.context.ext.EXT_disjoint_timer_query, log.getLogger(TOPICS.PROFILER));
         this.pipeline = new RenderPipeline(log.getLogger(TOPICS.SCHEDULER), this.profiler, this.context);
         this.quad = new QuadRenderer(this.context);
+        this.blitter = new Blitter(this, 'mediump');
 
-        this.voxel = new VoxelData(this.context);
+        this.voxelManager = new VoxelDataManager(this);
+        this.voxel = this.voxelManager.createVoxelData();
 
         this.presentPass = new PresentPass(this.context);
         this.raytracePass = new RaytracePass(this);
