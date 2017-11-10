@@ -28,8 +28,9 @@ export class VoxelData implements IDisposable
         for (let x = 0; x < 256; ++x) {
             for (let y = 0; y < 256; ++y) {
                 for (let z = 0; z < 256; ++z) {
-                    let v = Math.sin(x / 20) + Math.sin(y / 20) + Math.cos(z / 20) + Math.sin((x ^ y ^ z) * .1) * 2 - 1.5;
+                    let v = Math.sin(x / 20) + Math.sin(y / 20) + Math.cos(z / 20) + Math.sin((x ^ y ^ z) * .1) * 0.5;
                     v *= Math.max(0, 128 * 128 - Math.pow(x - 128, 2) - Math.pow(y - 128, 2) - Math.pow(z - 128, 2)) / 128 / 128;
+                    v += (v - 0.5) * 5;
                     v = Math.max(Math.min(v * 255 | 0, 255), 0);
 
                     const sz1 = z & 15;

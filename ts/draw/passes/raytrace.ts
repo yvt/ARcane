@@ -222,7 +222,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
 
                 for (mediump int i = 0; i < 512; ++i) {
                     mediump float dens = ${fetchVoxel}(voxel);
-                    if (dens > 0.2) {
+                    if (dens > 0.5) {
                         hitVoxel = voxel;
                         return true;
                     }
