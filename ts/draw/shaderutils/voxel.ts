@@ -117,7 +117,7 @@ class VoxelDataShaderModule extends ShaderModule<any, {}>
             highp float sz1 = fract(voxel.z * (1.0 / 16.0)) * 16.0;
             highp float sz2 = floor(voxel.z * (1.0 / 16.0));
             highp vec2 mapped =
-                (voxel.xy + 0.5) * (1.0 / 4096.0) +
+                (voxel.xy + exp2(lod - 1.0)) * (1.0 / 4096.0) +
                 vec2(sz1, sz2) * (256.0 / 4096.0);
 
             return texture2DLodEXT(tex, mapped, lod).w;
@@ -131,7 +131,7 @@ class VoxelDataShaderModule extends ShaderModule<any, {}>
             highp float sz1 = fract(voxel.z * (1.0 / 16.0)) * 16.0;
             highp float sz2 = floor(voxel.z * (1.0 / 16.0));
             highp vec2 mapped =
-                (voxel.xy + 0.5) * (1.0 / 4096.0) +
+                (voxel.xy + exp2(lod - 1.0)) * (1.0 / 4096.0) +
                 vec2(sz1, sz2) * (256.0 / 4096.0);
 
             return texture2DLod(tex, mapped, lod).w;
