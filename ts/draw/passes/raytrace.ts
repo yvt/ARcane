@@ -144,44 +144,16 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
 
     private readonly voxelTrace = allocateIdentifier();
     private readonly clipRay = allocateIdentifier();
+    private readonly fetchVoxel = allocateIdentifier();
 
     emitFrag()
     {
-        const {voxelTrace, clipRay} = this;
+        const {voxelTrace, clipRay, fetchVoxel} = this;
         return `
             uniform highp mat4 ${this.u_ViewProjMat};
 
             varying highp vec4 v_RayStart;
             varying highp vec4 v_RayEnd;
-
-            // Coordinates are specified in the voxel data space
-            mediump float ${voxelTrace}(
-                highp vec3 rayStart,
-                highp vec3 rayEnd,
-                highp vec3 rayDir
-            ) {
-                highp float rayLen = length(rayEnd - rayStart);
-                mediump float dens = 0.0;
-
-                for (mediump int i = 0; i < 256; ++i) {
-                    highp vec3 position = floor(rayStart);
-                    highp float sz1 = fract(position.z * (1.0 / 16.0)) * 16.0;
-                    highp float sz2 = floor(position.z * (1.0 / 16.0));
-                    highp vec2 mapped =
-                        position.xy * (1.0 / 4096.0) +
-                        vec2(sz1, sz2) * (256.0 / 4096.0);
-
-                    dens += texture2D(${this.densityTexture.u_Texture}, mapped).w;
-
-                    rayStart += rayDir * 2.0;
-                    rayLen -= 2.0;
-                    if (rayLen <= 0.0) {
-                        break;
-                    }
-                }
-
-                return dens;
-            }
 
             void ${clipRay}(
                 inout highp vec3 rayStart,
@@ -207,10 +179,22 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                 }
             }
 
-            void main() {
-                // Render a cube
-                highp vec3 rayStart = v_RayStart.xyz / v_RayStart.w;
-                highp vec3 rayEnd = v_RayEnd.xyz / v_RayEnd.w;
+            mediump float ${fetchVoxel}(highp vec3 voxel) {
+                highp float sz1 = fract(voxel.z * (1.0 / 16.0)) * 16.0;
+                highp float sz2 = floor(voxel.z * (1.0 / 16.0));
+                highp vec2 mapped =
+                    (voxel.xy + 0.5) * (1.0 / 4096.0) +
+                    vec2(sz1, sz2) * (256.0 / 4096.0);
+
+                return texture2D(${this.densityTexture.u_Texture}, mapped).w;
+            }
+
+            // Coordinates are specified in the voxel data space
+            bool ${voxelTrace}(
+                highp vec3 rayStart,
+                highp vec3 rayEnd,
+                out highp vec3 hitVoxel
+            ) {
                 highp vec3 rayDir = normalize(rayEnd - rayStart);
 
                 ${clipRay}(rayStart, rayEnd, rayDir, vec3(1.0, 0.0, 0.0), 0.0);
@@ -220,12 +204,86 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                 ${clipRay}(rayStart, rayEnd, rayDir, vec3(0.0, 0.0, 1.0), 0.0);
                 ${clipRay}(rayStart, rayEnd, rayDir, vec3(0.0, 0.0, -1.0), 256.0);
 
-                mediump float dens = 0.0;
-                if (dot(rayEnd - rayStart, rayDir) >= 0.0) {
-                    dens = ${voxelTrace}(rayStart, rayEnd, rayDir);
+                if (dot(rayEnd - rayStart, rayDir) <= 0.0) {
+                    return false;
                 }
 
-                gl_FragColor = vec4(vec3(exp2(-dens)), 1.0);
+                highp float rayLen = length(rayEnd - rayStart);
+                mediump float dens = 0.0;
+
+                /// The current voxel.
+                highp vec3 voxel = floor(rayStart);
+
+                /// The X, Y, and Z coordinates of the next X, Y, and Z planes that the ray collides, respectively.
+                highp vec3 nextPlane = voxel + max(sign(rayDir), vec3(0.0));
+
+                /// The time at which the ray intersects each plane indicated by "nextPlane".
+                highp vec3 nextPlaneT = abs((nextPlane - rayStart) / rayDir);
+
+                for (mediump int i = 0; i < 512; ++i) {
+                    mediump float dens = ${fetchVoxel}(voxel);
+                    if (dens > 0.2) {
+                        hitVoxel = voxel;
+                        return true;
+                    }
+
+                    highp float minPlaneT = min(min(nextPlaneT.x, nextPlaneT.y), nextPlaneT.z);
+                    rayStart += minPlaneT * rayDir;
+
+                    highp vec3 origPlaneT = nextPlaneT;
+                    nextPlaneT -= minPlaneT;
+
+                    if (minPlaneT == origPlaneT.x) {
+                        voxel.x += sign(rayDir.x);
+                        nextPlaneT.x = abs(1.0 / rayDir.x);
+                    } else if (minPlaneT == origPlaneT.y) {
+                        voxel.y += sign(rayDir.y);
+                        nextPlaneT.y = abs(1.0 / rayDir.y);
+                    } else {
+                        voxel.z += sign(rayDir.z);
+                        nextPlaneT.z = abs(1.0 / rayDir.z);
+                    }
+
+                    rayLen -= minPlaneT;
+                    if (rayLen < 0.0) {
+                        break;
+                    }
+                }
+
+                return false;
+            }
+
+            void main() {
+                // Render a cube
+                highp vec3 rayStart = v_RayStart.xyz / v_RayStart.w;
+                highp vec3 rayEnd = v_RayEnd.xyz / v_RayEnd.w;
+
+                highp vec3 hitVoxel;
+                if (${voxelTrace}(rayStart, rayEnd, hitVoxel)) {
+                    // Derive the normal using the partial derivatives
+                    mediump float val1 = ${fetchVoxel}(hitVoxel);
+                    mediump vec3 neighbor = vec3(
+                        ${fetchVoxel}(hitVoxel + vec3(1.0, 0.0, 0.0)),
+                        ${fetchVoxel}(hitVoxel + vec3(0.0, 1.0, 0.0)),
+                        ${fetchVoxel}(hitVoxel + vec3(0.0, 0.0, 1.0))
+                    );
+                    mediump vec3 normal = normalize(val1 - neighbor);
+
+                    // Diffuse shading
+                    mediump vec3 lightDir = normalize(vec3(0.3, 1.0, 0.3));
+                    mediump float diffuse;
+                    highp vec3 dummy;
+                    if (${voxelTrace}(hitVoxel + lightDir * 2.0, hitVoxel + lightDir * 512.0, dummy)) {
+                        diffuse = 0.0;
+                    } else {
+                        diffuse = max(dot(normal, lightDir), 0.0);
+                    }
+                    diffuse += 0.03;
+
+                    gl_FragColor = vec4(vec3(1.0, 0.9, 0.8) * sqrt(diffuse), 1.0);
+                } else {
+                    gl_FragColor = vec4(1.0);
+                }
             }
         `;
     }
