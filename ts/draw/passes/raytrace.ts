@@ -300,7 +300,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                     mediump float diffuse;
                     highp vec3 dummy1, dummy2;
                     if (${voxelTrace}(
-                        hitPosition + lightDir * 2.0,
+                        hitPosition + lightDir * 2.0 + normal,
                         hitPosition + lightDir * 512.0,
                         /* out */ dummy1,
                         /* out */ dummy2
