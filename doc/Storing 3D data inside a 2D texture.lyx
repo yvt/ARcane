@@ -1,0 +1,347 @@
+#LyX 2.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 508
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\use_hyperref false
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Storing 3D Data Inside a 2D Texture
+\end_layout
+
+\begin_layout Author
+yvt <
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
+i@yvt.jp
+\end_layout
+
+\end_inset
+
+>
+\end_layout
+
+\begin_layout Date
+November 12, 2017
+\end_layout
+
+\begin_layout Abstract
+Voxel data can be trivially represented using a densely-packed three-dimensional
+ array.
+ However, some graphics hardware and APIs (namely, WebGL 1.0) lack a native
+ support for such data structures, and yet still provide a strong support
+ for two-dimensional arrays.
+ This document shows how to store three-dimensional data inside a two-dimensiona
+l array for efficient access by a graphics hardware.
+\end_layout
+
+\begin_layout Standard
+Suppose that we have three-dimensional data of size 
+\begin_inset Formula $W\times H\times D$
+\end_inset
+
+, each element of which is denoted by 
+\begin_inset Formula $x[i,j,k]$
+\end_inset
+
+ (where 
+\begin_inset Formula $0\le i<W$
+\end_inset
+
+, 
+\begin_inset Formula $0\le j<H$
+\end_inset
+
+, 
+\begin_inset Formula $0\le k<D$
+\end_inset
+
+), and that 
+\begin_inset Formula $D$
+\end_inset
+
+ can be decomposed into two integers 
+\begin_inset Formula $D_{1}$
+\end_inset
+
+ and 
+\begin_inset Formula $D_{2}$
+\end_inset
+
+ such that 
+\begin_inset Formula $D_{1}D_{2}=D$
+\end_inset
+
+ holds.
+ We can map back and forth from 
+\begin_inset Formula $x[i,j,k]$
+\end_inset
+
+ to two-dimensional data of size 
+\begin_inset Formula $WD_{1}\times HD_{2}$
+\end_inset
+
+ by providing a bijection 
+\begin_inset Formula $f$
+\end_inset
+
+ such that 
+\begin_inset Formula $f\,:\,\mathbb{N}_{W}\times\mathbb{N}_{H}\times\mathbb{N}_{D}\to\mathbb{N}_{WD_{1}}\times\mathbb{N}_{HD_{2}}$
+\end_inset
+
+.
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+\begin_inset Formula $\mathbb{N}_{i}$
+\end_inset
+
+ denotes 
+\begin_inset Formula $\{0,1,\dotsc,i-1\}$
+\end_inset
+
+.
+\end_layout
+
+\end_inset
+
+ Hereby we show an example of such mapping:
+\begin_inset Formula 
+\begin{equation}
+f(i,j,k)=(i+W(k\,\bmod\,D_{1}),\,jD_{2}+\left\lfloor k/D_{1}\right\rfloor )\label{eq:awesome-map}
+\end{equation}
+
+\end_inset
+
+We will demonstrate that this mapping function allows an efficient implementatio
+n for commodity graphics hardware by means of exploiting its texture addressing
+ functionality.
+\end_layout
+
+\begin_layout Section
+Texture Addressing
+\end_layout
+
+\begin_layout Standard
+Basically, texture mapping works by taking a UV coordinate supplied by a
+ shader and reading the value of the corresponding pixel from a texture.
+ When the most simple nearest-neighbor sampling mode is used, the result
+ of sampling the unnormalized
+\begin_inset Foot
+status open
+
+\begin_layout Plain Layout
+Although our target graphics API (WebGL) uses normalized texture coordinates
+ exclusively, we use unnormalized coordinates throughout this document for
+ simplicity.
+ 
+\end_layout
+
+\end_inset
+
+ UV coordinate 
+\begin_inset Formula $(u,v)$
+\end_inset
+
+ from a two-dimensional texture 
+\begin_inset Formula $T[i,j]$
+\end_inset
+
+ of size 
+\begin_inset Formula $W\times H$
+\end_inset
+
+ is found as:
+\begin_inset Formula 
+\[
+g(u,v)=T[\left\lfloor u\right\rfloor ,\left\lfloor v\right\rfloor ]
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Texture addressing modes affect the handling of out-of-range UV coordinates.
+ One of such modes, the wrapped texture addressing mode applies the modulo
+ operator to the input UV coordinate, transforming the aforementioned texture
+ sampling equation into the following one:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\begin{equation}
+g_{W}(u,v)=T[\left\lfloor u\right\rfloor \,\bmod\,W,\left\lfloor v\right\rfloor \,\bmod\,H]\label{eq:nnwrap}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+The operations required to perform the nearest-neighbor sampling and the
+ wrapped texture addressing are entirely done by a texture mapping hardware
+ and incur practically no cost.
+ Therefore, it is crucial to arrange the texture data in a way where we
+ can leverage the hardware's functionality in order to maximize the application
+ performance.
+\end_layout
+
+\begin_layout Section
+Sampling 3D Data From 2D Texture
+\end_layout
+
+\begin_layout Standard
+By harnessing the hardware texturing functionality described in the previous
+ section, we can sample three-dimensional data arranged in a order defined
+ by the equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:awesome-map"
+
+\end_inset
+
+ in an efficient way.
+\end_layout
+
+\begin_layout Standard
+Let 
+\begin_inset Formula $(i,j,k)\in\mathbb{N}_{W}\times\mathbb{N}_{H}\times\mathbb{N}_{D}$
+\end_inset
+
+ be the coordinate we would like to read a value from.
+ We construct an unnormalized UV coordinate as following:
+\begin_inset Formula 
+\begin{align*}
+u & =i+Wk\\
+v & =jD_{2}+\frac{1}{D_{1}}k
+\end{align*}
+
+\end_inset
+
+This leads to a quite efficient implementation as it only requires two additions
+ and three multiplications (or, one multiplication and two fused multiply-additi
+ons).
+ Now, we will show that sampling from the UV coordinate 
+\begin_inset Formula $(u,v)$
+\end_inset
+
+ gives the intended result when the nearest-neighbor sampling mode and wrapped
+ texture addressing mode are selected.
+ By using the equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:nnwrap"
+
+\end_inset
+
+, we find the result of texture sampling (note that the texture size is
+ 
+\begin_inset Formula $WD_{1}\times HD_{2}$
+\end_inset
+
+ here):
+\begin_inset Formula 
+\begin{align*}
+g_{W} & =T\left[\left\lfloor i+Wk\right\rfloor \,\bmod\,WD_{1},\left\lfloor jD_{2}+\frac{1}{D_{1}}k\right\rfloor \,\bmod\,HD_{2}\right]\\
+ & =T\left[i+W(k\,\bmod\,D_{1}),jD_{2}+\left\lfloor k/D_{1}\right\rfloor \right]
+\end{align*}
+
+\end_inset
+
+By comparing the result with the equation 
+\begin_inset CommandInset ref
+LatexCommand ref
+reference "eq:awesome-map"
+
+\end_inset
+
+, we can confirm that this UV coordinate points the intended value.
+\end_layout
+
+\begin_layout Section
+Performance Evaluation
+\end_layout
+
+\begin_layout Standard
+A performance evaluation was performed on iPhone 6 (Apple A8 processor with
+ quad-core PowerVR Series 6XT GX6450) using a voxel ray tracing routine.
+ No performance improvement over an naïve method was observed.
+ It is very likely that the computation was already memory bound and the
+ reduction in the number of ALU operations did not contribute to the runtime
+ performance.
+\end_layout
+
+\end_body
+\end_document

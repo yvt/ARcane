@@ -61,8 +61,8 @@ class VoxelDataImpl extends VoxelData
         gl.bindTexture(GLConstants.TEXTURE_2D, this.densityTex);
         gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.NEAREST);
         gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.NEAREST_MIPMAP_NEAREST);
-        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_S, GLConstants.CLAMP_TO_EDGE);
-        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.CLAMP_TO_EDGE);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_S, GLConstants.REPEAT);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.REPEAT);
 
         for (let i = 0; i <= 12; ++i) {
             gl.texImage2D(GLConstants.TEXTURE_2D, i, GLConstants.ALPHA, 4096 >> i, 4096 >> i, 0,
@@ -83,7 +83,7 @@ class VoxelDataImpl extends VoxelData
 
                     const sz1 = z & 15;
                     const sz2 = z >> 4;
-                    dens[x + (sz1 * 256) + (y + (sz2 * 256)) * 4096] = v;
+                    dens[x + (sz1 * 256) + (y * 16 + sz2) * 4096] = v;
                 }
             }
         }
@@ -109,23 +109,23 @@ class VoxelDataImpl extends VoxelData
                         const sz1 = (z << 1) & 15;
                         const sz2 = (z << 1) >> 4;
 
-                        const val1 = cur[(x * 2     + sz1 * psize) + (y * 2     + (sz2 * psize)) * pstride];
-                        const val2 = cur[(x * 2 + 1 + sz1 * psize) + (y * 2     + (sz2 * psize)) * pstride];
-                        const val3 = cur[(x * 2     + sz1 * psize) + (y * 2 + 1 + (sz2 * psize)) * pstride];
-                        const val4 = cur[(x * 2 + 1 + sz1 * psize) + (y * 2 + 1 + (sz2 * psize)) * pstride];
+                        const val1 = cur[(x * 2     + sz1 * psize) + ((y * 2    ) * 16 + sz2) * pstride];
+                        const val2 = cur[(x * 2 + 1 + sz1 * psize) + ((y * 2    ) * 16 + sz2) * pstride];
+                        const val3 = cur[(x * 2     + sz1 * psize) + ((y * 2 + 1) * 16 + sz2) * pstride];
+                        const val4 = cur[(x * 2 + 1 + sz1 * psize) + ((y * 2 + 1) * 16 + sz2) * pstride];
 
                         const sz1b = sz1 + 1;
                         const sz2b = sz2;
 
-                        const val5 = cur[(x * 2     + sz1b * psize) + (y * 2     + (sz2b * psize)) * pstride];
-                        const val6 = cur[(x * 2 + 1 + sz1b * psize) + (y * 2     + (sz2b * psize)) * pstride];
-                        const val7 = cur[(x * 2     + sz1b * psize) + (y * 2 + 1 + (sz2b * psize)) * pstride];
-                        const val8 = cur[(x * 2 + 1 + sz1b * psize) + (y * 2 + 1 + (sz2b * psize)) * pstride];
+                        const val5 = cur[(x * 2     + sz1b * psize) + ((y * 2    ) * 16 + sz2b) * pstride];
+                        const val6 = cur[(x * 2 + 1 + sz1b * psize) + ((y * 2    ) * 16 + sz2b) * pstride];
+                        const val7 = cur[(x * 2     + sz1b * psize) + ((y * 2 + 1) * 16 + sz2b) * pstride];
+                        const val8 = cur[(x * 2 + 1 + sz1b * psize) + ((y * 2 + 1) * 16 + sz2b) * pstride];
 
                         const sz1c = z & 15;
                         const sz2c = z >> 4;
 
-                        next[(x + (sz1c * size)) + (y + (sz2c * size)) * stride] =
+                        next[(x + (sz1c * size)) + (y * 16 + sz2c) * stride] =
                             Math.max(val1, val2, val3, val4, val5, val6, val7, val8);
                     }
                 }

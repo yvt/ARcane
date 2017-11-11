@@ -117,12 +117,10 @@ class VoxelDataShaderModule extends ShaderModule<any, {}>
     {
         return `
         mediump float ${this.fetchVoxel}(mediump sampler2D tex, highp vec3 voxel, mediump float lod) {
-            highp float sz1 = fract(voxel.z * (1.0 / 16.0)) * 16.0;
-            highp float sz2 = floor(voxel.z * (1.0 / 16.0));
+            highp float mipScale = exp2(lod);
             highp vec2 mapped =
-                (voxel.xy + exp2(lod - 1.0)) * (1.0 / 4096.0) +
-                vec2(sz1, sz2) * (256.0 / 4096.0);
-
+                voxel.xy * vec2(1.0 / 4096.0, 1.0 / 256.0) +
+                voxel.z  * vec2(256.0 / 4096.0, mipScale / 4096.0 / 16.0);
             return texture2DLodEXT(tex, mapped, lod).w;
         }`;
     }
@@ -131,12 +129,10 @@ class VoxelDataShaderModule extends ShaderModule<any, {}>
     {
         return `
         mediump float ${this.fetchVoxel}(mediump sampler2D tex, highp vec3 voxel, mediump float lod) {
-            highp float sz1 = fract(voxel.z * (1.0 / 16.0)) * 16.0;
-            highp float sz2 = floor(voxel.z * (1.0 / 16.0));
+            highp float mipScale = exp2(lod);
             highp vec2 mapped =
-                (voxel.xy + exp2(lod - 1.0)) * (1.0 / 4096.0) +
-                vec2(sz1, sz2) * (256.0 / 4096.0);
-
+                voxel.xy * vec2(1.0 / 4096.0, 1.0 / 256.0) +
+                voxel.z  * vec2(256.0 / 4096.0, mipScale / 4096.0 / 16.0);
             return texture2DLod(tex, mapped, lod).w;
         }`;
     }
