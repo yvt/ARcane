@@ -60,11 +60,11 @@ class VoxelDataImpl extends VoxelData
         this.densityTex = gl.createTexture()!;
         gl.bindTexture(GLConstants.TEXTURE_2D, this.densityTex);
         gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.NEAREST);
-        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.NEAREST);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.NEAREST_MIPMAP_NEAREST);
         gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_S, GLConstants.CLAMP_TO_EDGE);
         gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.CLAMP_TO_EDGE);
 
-        for (let i = 0; i < 12; ++i) {
+        for (let i = 0; i <= 12; ++i) {
             gl.texImage2D(GLConstants.TEXTURE_2D, i, GLConstants.ALPHA, 4096 >> i, 4096 >> i, 0,
                 GLConstants.ALPHA, GLConstants.UNSIGNED_BYTE, null);
         }
@@ -89,6 +89,47 @@ class VoxelDataImpl extends VoxelData
 
         gl.texImage2D(GLConstants.TEXTURE_2D, 0, GLConstants.ALPHA, 4096, 4096, 0,
             GLConstants.ALPHA, GLConstants.UNSIGNED_BYTE, dens);
+
+        // And the build mip pyramid
+        let cur = dens;
+        for (let i = 1; i <= 8; ++i) {
+            const size = 256 >> i;
+            const stride = size << 4;
+
+            const psize = size << 1;
+            const pstride = psize << 4;
+
+            const next = new Uint8Array(size * size * 256);
+            for (let x = 0; x < size; ++x) {
+                for (let y = 0; y < size; ++y) {
+                    for (let z = 0; z < size; ++z) {
+                        const sz1 = (z << i) & 15;
+                        const sz2 = (z << i) >> 4;
+
+                        const val1 = cur[(x * 2     + sz1 * psize) + (y * 2     + (sz2 * psize)) * pstride];
+                        const val2 = cur[(x * 2 + 1 + sz1 * psize) + (y * 2     + (sz2 * psize)) * pstride];
+                        const val3 = cur[(x * 2     + sz1 * psize) + (y * 2 + 1 + (sz2 * psize)) * pstride];
+                        const val4 = cur[(x * 2 + 1 + sz1 * psize) + (y * 2 + 1 + (sz2 * psize)) * pstride];
+
+                        const sz1b = ((z << i) + (1 << (i - 1))) & 15;
+                        const sz2b = ((z << i) + (1 << (i - 1))) >> 4;
+
+                        const val5 = cur[(x * 2     + sz1b * psize) + (y * 2     + (sz2b * psize)) * pstride];
+                        const val6 = cur[(x * 2 + 1 + sz1b * psize) + (y * 2     + (sz2b * psize)) * pstride];
+                        const val7 = cur[(x * 2     + sz1b * psize) + (y * 2 + 1 + (sz2b * psize)) * pstride];
+                        const val8 = cur[(x * 2 + 1 + sz1b * psize) + (y * 2 + 1 + (sz2b * psize)) * pstride];
+
+                        next[x + (sz1 * size) + (y + (sz2 * size)) * stride] =
+                            Math.max(val1, val2, val3, val4, val5, val6, val7, val8);
+                    }
+                }
+            }
+
+            gl.texImage2D(GLConstants.TEXTURE_2D, i, GLConstants.ALPHA, 4096 >> i, 4096 >> i, 0,
+                GLConstants.ALPHA, GLConstants.UNSIGNED_BYTE, next);
+
+            cur = next;
+        }
     }
 
     dispose(): void

@@ -182,7 +182,8 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
             bool ${voxelTrace}(
                 highp vec3 rayStart,
                 highp vec3 rayEnd,
-                out highp vec3 hitVoxel
+                out highp vec3 hitVoxel,
+                out highp vec3 hitPosition
             ) {
                 highp vec3 rayDir = normalize(rayEnd - rayStart);
 
@@ -200,37 +201,68 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                 highp float rayLen = length(rayEnd - rayStart);
                 mediump float dens = 0.0;
 
-                /// The current voxel.
-                highp vec3 voxel = floor(rayStart);
+                /// The current mip level.
+                mediump float mip = 8.0;
 
-                /// The X, Y, and Z coordinates of the next X, Y, and Z planes that the ray collides, respectively.
-                highp vec3 nextPlane = voxel + max(sign(rayDir), vec3(0.0));
+                /// The current voxel. (Always rounded to integral coordinates)
+                mediump vec3 voxel = floor(rayStart + rayDir * 0.001);
 
-                /// The time at which the ray intersects each plane indicated by "nextPlane".
-                highp vec3 nextPlaneT = abs((nextPlane - rayStart) / rayDir);
+                for (mediump int i = 0; i < 256; ++i) {
+                    mediump float mipScale = exp2(mip);
+                    mediump float mipScaleRcp = exp2(-mip);
 
-                for (mediump int i = 0; i < 512; ++i) {
-                    mediump float dens = ${this.voxelData.fetchVoxel}(voxel, 0.0);
+                    /// "voxel" rounded according to the current mip level
+                    mediump vec3 voxelRounded = floor(voxel * mipScaleRcp) * mipScale;
+
+                    mediump float dens = ${this.voxelData.fetchVoxel}(voxelRounded, mip);
                     if (dens > 0.5) {
-                        hitVoxel = voxel;
-                        return true;
+                        if (mip <= 0.0) {
+                            hitVoxel = voxel;
+                            hitPosition = rayStart;
+                            return true;
+                        } else {
+                            // We need to go deeper
+                            mip -= 1.0;
+                            continue;
+                        }
                     }
+
+                    // The X, Y, and Z coordinates of the next X, Y, and Z planes that the ray collides, respectively.
+                    mediump vec3 nextPlane = voxelRounded + max(sign(rayDir), vec3(0.0)) * mipScale;
+
+                    /// The time at which the ray intersects each plane indicated by "nextPlane".
+                    // hack: Flicker appears when rayDir.x < 0 || rayDir.z < 0 if we change the last value to vec3(0.001).
+                    //       I just don't know why.
+                    highp vec3 nextPlaneT = max((nextPlane - rayStart) / rayDir, vec3(0.001));
 
                     highp float minPlaneT = min(min(nextPlaneT.x, nextPlaneT.y), nextPlaneT.z);
                     rayStart += minPlaneT * rayDir;
 
-                    highp vec3 origPlaneT = nextPlaneT;
-                    nextPlaneT -= minPlaneT;
+                    mediump float minPlaneCoord;
 
-                    if (minPlaneT == origPlaneT.x) {
-                        voxel.x += sign(rayDir.x);
-                        nextPlaneT.x = abs(1.0 / rayDir.x);
-                    } else if (minPlaneT == origPlaneT.y) {
-                        voxel.y += sign(rayDir.y);
-                        nextPlaneT.y = abs(1.0 / rayDir.y);
-                    } else {
-                        voxel.z += sign(rayDir.z);
-                        nextPlaneT.z = abs(1.0 / rayDir.z);
+                    // Figure out which voxel the ray has entered
+                    // (with a correct rounding for each possible intersecting plane)
+                    voxel = floor(rayStart);
+                    if (minPlaneT == nextPlaneT.x) {
+                        voxel.x = nextPlane.x + min(sign(rayDir.x), 0.0);
+                        minPlaneCoord = nextPlane.x;
+                    } else if (minPlaneT == nextPlaneT.y) {
+                        voxel.y = nextPlane.y + min(sign(rayDir.y), 0.0);
+                        minPlaneCoord = nextPlane.y;
+                    } else /* if (minPlaneT == nextPlaneT.z) */ {
+                        voxel.z = nextPlane.z + min(sign(rayDir.z), 0.0);
+                        minPlaneCoord = nextPlane.z;
+                    }
+
+                    // Go back to the higher mip level as needed
+                    // (I wish I had leading_zeros in WebGL 1.0 SL)
+                    minPlaneCoord *= mipScaleRcp;
+                    for (int k = 0; k < 8; ++k) {
+                        if (mip >= 8.0 || floor(minPlaneCoord * 0.5) != minPlaneCoord * 0.5) {
+                            break;
+                        }
+                        minPlaneCoord *= 0.5;
+                        mip += 1.0;
                     }
 
                     rayLen -= minPlaneT;
@@ -247,8 +279,13 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                 highp vec3 rayStart = v_RayStart.xyz / v_RayStart.w;
                 highp vec3 rayEnd = v_RayEnd.xyz / v_RayEnd.w;
 
-                highp vec3 hitVoxel;
-                if (${voxelTrace}(rayStart, rayEnd, hitVoxel)) {
+                highp vec3 hitVoxel, hitPosition;
+                if (${voxelTrace}(
+                    rayStart,
+                    rayEnd,
+                    /* out */ hitVoxel,
+                    /* out */ hitPosition
+                )) {
                     // Derive the normal using the partial derivatives
                     mediump float val1 = ${this.voxelData.fetchVoxel}(hitVoxel, 0.0);
                     mediump vec3 neighbor = vec3(
@@ -261,8 +298,13 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                     // Diffuse shading
                     mediump vec3 lightDir = normalize(vec3(0.3, 1.0, 0.3));
                     mediump float diffuse;
-                    highp vec3 dummy;
-                    if (${voxelTrace}(hitVoxel + lightDir * 2.0, hitVoxel + lightDir * 512.0, dummy)) {
+                    highp vec3 dummy1, dummy2;
+                    if (${voxelTrace}(
+                        hitPosition + lightDir * 2.0,
+                        hitPosition + lightDir * 512.0,
+                        /* out */ dummy1,
+                        /* out */ dummy2
+                    )) {
                         diffuse = 0.0;
                     } else {
                         diffuse = max(dot(normal, lightDir), 0.0);

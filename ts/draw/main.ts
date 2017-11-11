@@ -40,13 +40,13 @@ export class Renderer
             throw new Error("EXT_shader_texture_lod is not supported. Cannot proceed.");
         }
 
+        this.voxelManager = new VoxelDataManager(this);
+        this.voxel = this.voxelManager.createVoxelData();
+
         this.profiler = new Profiler(this.context.ext.EXT_disjoint_timer_query, log.getLogger(TOPICS.PROFILER));
         this.pipeline = new RenderPipeline(log.getLogger(TOPICS.SCHEDULER), this.profiler, this.context);
         this.quad = new QuadRenderer(this.context);
         this.blitter = new Blitter(this, 'mediump');
-
-        this.voxelManager = new VoxelDataManager(this);
-        this.voxel = this.voxelManager.createVoxelData();
 
         this.presentPass = new PresentPass(this.context);
         this.raytracePass = new RaytracePass(this);
