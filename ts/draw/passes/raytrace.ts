@@ -208,8 +208,11 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                 mediump vec3 voxel = rayStart + rayDir * 0.001;
 
                 for (mediump int i = 0; i < 256; ++i) {
+                    // Algebraically exp2(-mip) = 1 / exp(mip) must hold (as well as in FP arithmetics), but using
+                    // "exp2(-mip)" in place of "1.0 / mipScale" generates imprecise results on Apple A10, messing up
+                    // entire the algorithm
                     mediump float mipScale = exp2(mip);
-                    mediump float mipScaleRcp = exp2(-mip);
+                    mediump float mipScaleRcp = 1.0 / mipScale;
 
                     mediump vec3 voxelRoundedB = floor(voxel * mipScaleRcp);
 
