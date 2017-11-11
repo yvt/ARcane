@@ -204,20 +204,22 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
                 /// The current mip level.
                 mediump float mip = 8.0;
 
-                /// The current voxel. (Always rounded to integral coordinates)
-                mediump vec3 voxel = floor(rayStart + rayDir * 0.001);
+                /// The current voxel. (fractional part does not have a significance)
+                mediump vec3 voxel = rayStart + rayDir * 0.001;
 
                 for (mediump int i = 0; i < 256; ++i) {
                     mediump float mipScale = exp2(mip);
                     mediump float mipScaleRcp = exp2(-mip);
 
-                    /// "voxel" rounded according to the current mip level
-                    mediump vec3 voxelRounded = floor(voxel * mipScaleRcp) * mipScale;
+                    mediump vec3 voxelRoundedB = floor(voxel * mipScaleRcp);
 
-                    mediump float dens = ${this.voxelData.fetchVoxel}(voxelRounded, mip);
+                    /// "voxel" rounded according to the current mip level
+                    mediump vec3 voxelRounded = voxelRoundedB * mipScale;
+
+                    mediump float dens = ${this.voxelData.fetchVoxel}(vec3(voxelRounded.xy, voxelRoundedB.z), mip);
                     if (dens > 0.5) {
                         if (mip <= 0.0) {
-                            hitVoxel = voxel;
+                            hitVoxel = floor(voxel);
                             hitPosition = rayStart;
                             return true;
                         } else {
@@ -242,7 +244,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
 
                     // Figure out which voxel the ray has entered
                     // (with a correct rounding for each possible intersecting plane)
-                    voxel = floor(rayStart);
+                    voxel = rayStart;
                     if (minPlaneT == nextPlaneT.x) {
                         voxel.x = nextPlane.x + min(sign(rayDir.x), 0.0);
                         minPlaneCoord = nextPlane.x;
@@ -256,9 +258,14 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
 
                     // Go back to the higher mip level as needed
                     // (I wish I had leading_zeros in WebGL 1.0 SL)
+                    //
+                    // The number of mip levels to go back is limited to 2 because
+                    // it runs faster when I limit it for some reason. Maybe loop
+                    // overhead?
+                    minPlaneCoord += 256.0; // limit "mip <= 8"
                     minPlaneCoord *= mipScaleRcp;
-                    for (int k = 0; k < 8; ++k) {
-                        if (mip >= 8.0 || floor(minPlaneCoord * 0.5) != minPlaneCoord * 0.5) {
+                    for (mediump int k = 0; k < 2; ++k) {
+                        if (floor(minPlaneCoord * 0.5) != minPlaneCoord * 0.5) {
                             break;
                         }
                         minPlaneCoord *= 0.5;

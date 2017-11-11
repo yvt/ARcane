@@ -36,7 +36,10 @@ export class VoxelDataShaderObject extends ShaderObject<VoxelDataShaderInstance,
      * This function has the following parameters:
      *
      *  - `highp vec3 voxel`: specifies the coordinate of the voxel.
-     *    The components of the coordinate must be multiples of `exp2(lod)`.
+     *     - The X and Y components of the coordinate must be multiples of
+     *       `exp2(lod)`.
+     *     - The Z component must be pre-scaled by `1 / exp2(lod)`. The scaled
+     *       value must be integral.
      *  - `mediump float lod`: specifies the mip level (`0` = most detail).
      *    Must be an integral value.
      */

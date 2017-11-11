@@ -94,9 +94,11 @@ class VoxelDataImpl extends VoxelData
         // And the build mip pyramid
         let cur = dens;
         for (let i = 1; i <= 8; ++i) {
+            // current level
             const size = 256 >> i;
             const stride = size << 4;
 
+            // previous level
             const psize = size << 1;
             const pstride = psize << 4;
 
@@ -104,23 +106,26 @@ class VoxelDataImpl extends VoxelData
             for (let z = 0; z < size; ++z) {
                 for (let x = 0; x < size; ++x) {
                     for (let y = 0; y < size; ++y) {
-                        const sz1 = (z << i) & 15;
-                        const sz2 = (z << i) >> 4;
+                        const sz1 = (z << 1) & 15;
+                        const sz2 = (z << 1) >> 4;
 
                         const val1 = cur[(x * 2     + sz1 * psize) + (y * 2     + (sz2 * psize)) * pstride];
                         const val2 = cur[(x * 2 + 1 + sz1 * psize) + (y * 2     + (sz2 * psize)) * pstride];
                         const val3 = cur[(x * 2     + sz1 * psize) + (y * 2 + 1 + (sz2 * psize)) * pstride];
                         const val4 = cur[(x * 2 + 1 + sz1 * psize) + (y * 2 + 1 + (sz2 * psize)) * pstride];
 
-                        const sz1b = ((z << i) + (1 << (i - 1))) & 15;
-                        const sz2b = ((z << i) + (1 << (i - 1))) >> 4;
+                        const sz1b = sz1 + 1;
+                        const sz2b = sz2;
 
                         const val5 = cur[(x * 2     + sz1b * psize) + (y * 2     + (sz2b * psize)) * pstride];
                         const val6 = cur[(x * 2 + 1 + sz1b * psize) + (y * 2     + (sz2b * psize)) * pstride];
                         const val7 = cur[(x * 2     + sz1b * psize) + (y * 2 + 1 + (sz2b * psize)) * pstride];
                         const val8 = cur[(x * 2 + 1 + sz1b * psize) + (y * 2 + 1 + (sz2b * psize)) * pstride];
 
-                        next[x + (sz1 * size) + (y + (sz2 * size)) * stride] =
+                        const sz1c = z & 15;
+                        const sz2c = z >> 4;
+
+                        next[(x + (sz1c * size)) + (y + (sz2c * size)) * stride] =
                             Math.max(val1, val2, val3, val4, val5, val6, val7, val8);
                     }
                 }
