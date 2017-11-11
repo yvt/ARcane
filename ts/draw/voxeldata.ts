@@ -72,12 +72,13 @@ class VoxelDataImpl extends VoxelData
         // Initialize it with a random data
         const dens = new Uint8Array(256 * 256 * 256);
 
-        for (let x = 0; x < 256; ++x) {
-            for (let y = 0; y < 256; ++y) {
-                for (let z = 0; z < 256; ++z) {
-                    let v = Math.sin(x / 20) + Math.sin(y / 20) + Math.cos(z / 20) + Math.sin((x ^ y ^ z) * .1) * 0.5;
+        for (let z = 0; z < 256; ++z) {
+            for (let x = 0; x < 256; ++x) {
+                for (let y = 0; y < 256; ++y) {
+                    let v = Math.sin(x / 20) + Math.sin(y / 20) + Math.cos(z / 20)
+                        + Math.sin(x / 7) * 0.5 + Math.sin(y / 3) * 0.1 + Math.sin(z / 55) * 0.5;
                     v *= Math.max(0, 128 * 128 - Math.pow(x - 128, 2) - Math.pow(y - 128, 2) - Math.pow(z - 128, 2)) / 128 / 128;
-                    v += (v - 0.5) * 5;
+                    v += (v - 0.5) * 4;
                     v = Math.max(Math.min(v * 255 | 0, 255), 0);
 
                     const sz1 = z & 15;
@@ -100,9 +101,9 @@ class VoxelDataImpl extends VoxelData
             const pstride = psize << 4;
 
             const next = new Uint8Array(size * size * 256);
-            for (let x = 0; x < size; ++x) {
-                for (let y = 0; y < size; ++y) {
-                    for (let z = 0; z < size; ++z) {
+            for (let z = 0; z < size; ++z) {
+                for (let x = 0; x < size; ++x) {
+                    for (let y = 0; y < size; ++y) {
                         const sz1 = (z << i) & 15;
                         const sz2 = (z << i) >> 4;
 
