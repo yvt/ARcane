@@ -9,6 +9,7 @@ import { Blitter } from './subpasses/blit';
 
 import { PresentPass } from './passes/present';
 import { RaytracePass } from './passes/raytrace';
+import { GlobalLightingPass } from './passes/globallighting';
 import { VisualizeColorBufferPass } from './passes/visualize';
 
 import { Scene } from './model';
@@ -25,6 +26,7 @@ export class Renderer
 
     private readonly presentPass: PresentPass;
     private readonly raytracePass: RaytracePass;
+    private readonly globalLightingPass: GlobalLightingPass;
     private readonly visualizeColorBufferPass: VisualizeColorBufferPass;
 
     private lastWidth: number = 0;
@@ -52,6 +54,7 @@ export class Renderer
 
         this.presentPass = new PresentPass(this.context);
         this.raytracePass = new RaytracePass(this);
+        this.globalLightingPass = new GlobalLightingPass(this);
         this.visualizeColorBufferPass = new VisualizeColorBufferPass(this);
     }
 
@@ -59,6 +62,7 @@ export class Renderer
     {
         this.presentPass.dispose();
         this.raytracePass.dispose();
+        this.globalLightingPass.dispose();
         this.visualizeColorBufferPass.dispose();
 
         this.voxel.dispose();
@@ -71,7 +75,15 @@ export class Renderer
     {
         const ops: RenderOperation<GLContext>[] = [];
 
-        const output = this.raytracePass.setup(ops);
+        const g1 = this.raytracePass.setup(
+            this.context.gl.drawingBufferWidth,
+            this.context.gl.drawingBufferHeight,
+            ops,
+        );
+
+        const lit = this.globalLightingPass.setup(g1, ops);
+
+        const output = this.visualizeColorBufferPass.setup(lit, ops);
 
         const logger = this.log.getLogger(TOPICS.SCHEDULER);
         if (logger.isEnabled) {

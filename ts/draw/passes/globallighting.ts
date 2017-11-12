@@ -23,14 +23,17 @@ import {
 } from '../shadertk/shadertoolkittyped';
 
 import { PieShaderModule, PieShaderChunk } from '../shadertk/pieglsl';
-const raytraceFragModule: PieShaderModule = require('./raytrace_frag.glsl');
-const raytraceVertModule: PieShaderModule = require('./raytrace_vert.glsl');
+const globalLightingFragModule: PieShaderModule = require('./globallighting_frag.glsl');
+const globalLightingVertModule: PieShaderModule = require('./globallighting_vert.glsl');
 
 import {
     VoxelDataShaderObject, VoxelDataShaderInstance, VoxelDataShaderParam
 } from '../shaderutils/voxel';
+import {
+    Texture2DShaderObject, Texture2DShaderInstance, TextureShaderParameter
+} from '../shaderutils/texture';
 
-export interface RaytraceContext
+export interface GlobalLightingContext
 {
     readonly context: GLContext;
     readonly quad: QuadRenderer;
@@ -38,15 +41,15 @@ export interface RaytraceContext
     readonly voxel: VoxelData;
 }
 
-export class RaytracePass
+export class GlobalLightingPass
 {
-    shaderInstance: TypedShaderInstance<RaytraceShaderInstance, RaytraceShaderParam>;
+    shaderInstance: TypedShaderInstance<GlobalLightingShaderInstance, GlobalLightingShaderParam>;
 
-    constructor(public readonly context: RaytraceContext)
+    constructor(public readonly context: GlobalLightingContext)
     {
         this.shaderInstance = buildShaderTyped
-            <RaytraceShaderModule, RaytraceShaderInstance, RaytraceShaderParam>
-            (builder => new RaytraceShaderModule(builder))
+            <GlobalLightingShaderModule, GlobalLightingShaderInstance, GlobalLightingShaderParam>
+            (builder => new GlobalLightingShaderModule(builder))
             .compile(context.context);
     }
 
@@ -54,36 +57,39 @@ export class RaytracePass
     {
     }
 
-    setup(width: number, height: number, ops: RenderOperation<GLContext>[]): TextureRenderBufferInfo
+    setup(g1: TextureRenderBufferInfo, ops: RenderOperation<GLContext>[]): TextureRenderBufferInfo
     {
-        const g1 = new TextureRenderBufferInfo(
-            "GBuffer 1",
+        const {width, height} = g1;
+        const lit = new TextureRenderBufferInfo(
+            "Lit",
             width, height,
-            TextureRenderBufferFormat.RGBAF16,
+            TextureRenderBufferFormat.RGBA8,
         );
 
         ops.push({
-            inputs: {},
-            outputs: { g1 },
+            inputs: { g1 },
+            outputs: { lit },
             optionalOutputs: [],
-            name: "Raytrace",
-            factory: (cfg) => new RaytraceOperator(
+            name: "Global Lighting",
+            factory: (cfg) => new GlobalLightingOperator(
                 this,
-                downcast(TextureRenderBuffer, cfg.outputs['g1']),
+                downcast(TextureRenderBuffer, cfg.outputs['lit']),
+                downcast(TextureRenderBuffer, cfg.inputs['g1']),
             ),
         });
 
-        return g1;
+        return lit;
     }
 }
 
-class RaytraceOperator implements RenderOperator
+class GlobalLightingOperator implements RenderOperator
 {
-    private shaderParams: TypedShaderParameter<RaytraceShaderParam>;
+    private shaderParams: TypedShaderParameter<GlobalLightingShaderParam>;
     private framebuffer: GLFramebuffer;
 
     constructor(
-        private pass: RaytracePass,
+        private pass: GlobalLightingPass,
+        private outputLit: TextureRenderBuffer,
         private g1: TextureRenderBuffer,
     )
     {
@@ -92,7 +98,7 @@ class RaytraceOperator implements RenderOperator
         this.framebuffer = GLFramebuffer.createFramebuffer(
             pass.context.context,
             {
-                colors: [g1.texture!],
+                colors: [outputLit.texture!],
             }
         );
     }
@@ -115,6 +121,7 @@ class RaytraceOperator implements RenderOperator
         mat4.mul(params.viewProjMat, scene.projectionMatrix, scene.viewMatrix);
         mat4.invert(params.invViewProjMat, params.viewProjMat);
         params.voxelData.voxelData = voxel;
+        params.g1Texture.texture = this.g1.texture;
 
         context.framebuffer = this.framebuffer;
         context.states = GLStateFlags.Default;
@@ -133,46 +140,44 @@ class RaytraceOperator implements RenderOperator
     }
 }
 
-interface RaytraceShaderParam
+interface GlobalLightingShaderParam
 {
     viewProjMat: mat4;
     invViewProjMat: mat4;
     voxelData: VoxelDataShaderParam;
+    g1Texture: TextureShaderParameter;
 }
 
-class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, RaytraceShaderParam>
+class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstance, GlobalLightingShaderParam>
 {
     private readonly fragChunk = new PieShaderChunk<{
-        u_ViewProjMat: string;
-        v_RayStart: string;
-        v_RayEnd: string;
+        v_TexCoord: string;
+        g1Texture: string;
         fetchVoxelData: string;
-    }>(raytraceFragModule);
+    }>(globalLightingFragModule);
     private readonly vertChunk = new PieShaderChunk<{
         a_Position: string;
-        u_InvViewProjMat: string;
-        v_RayStart: string;
-        v_RayEnd: string;
-    }>(raytraceVertModule);
+        v_TexCoord: string;
+    }>(globalLightingVertModule);
 
     readonly a_Position = this.vertChunk.bindings.a_Position;
-    readonly u_InvViewProjMat = this.vertChunk.bindings.u_InvViewProjMat;
-    readonly u_ViewProjMat = this.fragChunk.bindings.u_ViewProjMat;
 
+    readonly g1Texture: Texture2DShaderObject;
     readonly voxelData: VoxelDataShaderObject;
 
     constructor(builder: ShaderBuilder)
     {
         super(builder);
 
+        this.g1Texture = new Texture2DShaderObject(builder, 'mediump');
         this.voxelData = new VoxelDataShaderObject(builder);
 
         this.fragChunk.bind({
             // varyings
-            v_RayStart: this.vertChunk.bindings.v_RayStart,
-            v_RayEnd: this.vertChunk.bindings.v_RayEnd,
+            v_TexCoord: this.vertChunk.bindings.v_TexCoord,
 
             // child object
+            g1Texture: this.g1Texture.u_Texture,
             fetchVoxelData: this.voxelData.fetchVoxelData,
         });
 
@@ -181,7 +186,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
 
     createInstance(builder: ShaderInstanceBuilder)
     {
-        return new RaytraceShaderInstance(builder, this);
+        return new GlobalLightingShaderInstance(builder, this);
     }
 
     emitFrag() { return this.fragChunk.emit(); }
@@ -189,41 +194,37 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
     emitVert() { return this.vertChunk.emit(); }
 }
 
-class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
+class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingShaderParam>
 {
     readonly a_Position: number;
-    readonly u_InvViewProjMat: WebGLUniformLocation;
-    readonly u_ViewProjMat: WebGLUniformLocation;
 
+    private readonly g1Texture: Texture2DShaderInstance;
     private readonly voxelData: VoxelDataShaderInstance;
 
-    constructor(builder: ShaderInstanceBuilder, parent: RaytraceShaderModule)
+    constructor(builder: ShaderInstanceBuilder, parent: GlobalLightingShaderModule)
     {
         super(builder);
 
         const {gl} = builder.context;
         this.a_Position = gl.getAttribLocation(builder.program.handle, parent.a_Position);
-        this.u_InvViewProjMat = gl.getUniformLocation(builder.program.handle, parent.u_InvViewProjMat)!;
-        this.u_ViewProjMat = gl.getUniformLocation(builder.program.handle, parent.u_ViewProjMat)!;
 
+        this.g1Texture = builder.getUnwrap(parent.g1Texture);
         this.voxelData = builder.getUnwrap(parent.voxelData);
     }
 
-    createParameter(builder: ShaderParameterBuilder): RaytraceShaderParam
+    createParameter(builder: ShaderParameterBuilder): GlobalLightingShaderParam
     {
         return {
             viewProjMat: mat4.create(),
             invViewProjMat: mat4.create(),
             voxelData: builder.getUnwrap(this.voxelData),
+            g1Texture: builder.getUnwrap(this.g1Texture),
         };
     }
 
-    apply(param: RaytraceShaderParam)
+    apply(param: GlobalLightingShaderParam)
     {
         const {gl} = this.context;
-
-        gl.uniformMatrix4fv(this.u_InvViewProjMat, false, param.invViewProjMat);
-        gl.uniformMatrix4fv(this.u_ViewProjMat, false, param.viewProjMat);
     }
 }
 

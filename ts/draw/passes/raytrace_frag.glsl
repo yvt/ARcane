@@ -157,32 +157,15 @@ void main() {
         /* out */ hitVoxel,
         /* out */ hitPosition
     )) {
-        // Derive the normal using the partial derivatives
-        mediump float val1 = fetchVoxelData(hitVoxel, 0.0);
-        mediump vec3 neighbor = vec3(
-            fetchVoxelData(hitVoxel + vec3(1.0, 0.0, 0.0), 0.0),
-            fetchVoxelData(hitVoxel + vec3(0.0, 1.0, 0.0), 0.0),
-            fetchVoxelData(hitVoxel + vec3(0.0, 0.0, 1.0), 0.0)
-        );
-        mediump vec3 normal = normalize(val1 - neighbor);
+        // Make sure the integral part of hit position is inside the voxel
+        // (with FP16 precision)
+        hitPosition = clamp(hitPosition, hitVoxel, hitVoxel + (1.0 - 1.0 / 8.0));
 
-        // Diffuse shading
-        mediump vec3 lightDir = normalize(vec3(0.3, 1.0, 0.3));
-        mediump float diffuse;
-        highp vec3 dummy1, dummy2;
-        if (voxelTrace(
-            hitPosition + lightDir * 2.0 + normal,
-            hitPosition + lightDir * 512.0,
-            /* out */ dummy1,
-            /* out */ dummy2
-        )) {
-            diffuse = 0.0;
-        } else {
-            diffuse = max(dot(normal, lightDir), 0.0);
-        }
-        diffuse += 0.03;
+        // Construct the GBuffer1 data
+        gl_FragColor.xyz = hitPosition;
 
-        gl_FragColor = vec4(vec3(1.0, 0.9, 0.8) * sqrt(diffuse), 1.0);
+        highp vec4 clipCoord = u_ViewProjMat * vec4(hitPosition, 1.0);
+        gl_FragColor.w = clipCoord.z / clipCoord.w;
     } else {
         gl_FragColor = vec4(1.0);
     }
