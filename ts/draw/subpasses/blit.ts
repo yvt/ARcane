@@ -40,6 +40,11 @@ export class Blitter
         this.shaderParam = this.shaderInstance.createParameter();
     }
 
+    get params(): BlitterParams
+    {
+        return this.shaderParam.root;
+    }
+
     blit(): void
     {
         const {context, quad} = this.context;
@@ -54,7 +59,7 @@ export class Blitter
     }
 }
 
-interface BlitShaderParam
+export interface BlitterParams
 {
     /** The minimum output coordinate specified in the clip space. */
     outputMin: vec2;
@@ -73,6 +78,8 @@ interface BlitShaderParam
     /** The input texture. */
     texture: TextureShaderParameter;
 }
+
+type BlitShaderParam = BlitterParams;
 
 class BlitShaderModule extends ShaderModule<BlitShaderInstance, BlitShaderParam>
 {

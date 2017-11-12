@@ -119,7 +119,7 @@ export enum TextureRenderBufferFormat
     R8G8
 }
 
-export interface TextureRenderBuffer extends RenderBuffer
+export abstract class TextureRenderBuffer implements RenderBuffer
 {
     width: number;
     height: number;
@@ -127,14 +127,15 @@ export interface TextureRenderBuffer extends RenderBuffer
     renderbuffer: WebGLRenderbuffer | null;
     format: TextureRenderBufferFormat;
 
-    invalidate(): void;
+    abstract invalidate(): void;
+    abstract dispose(): void;
 }
 
 export interface DummyRenderBuffer extends RenderBuffer
 {
 }
 
-class TextureRenderBufferImpl implements TextureRenderBuffer
+class TextureRenderBufferImpl extends TextureRenderBuffer
 {
     texture: WebGLTexture | null;
     renderbuffer: WebGLRenderbuffer | null; // actually unused:)
@@ -146,6 +147,8 @@ class TextureRenderBufferImpl implements TextureRenderBuffer
         public format: TextureRenderBufferFormat
     )
     {
+        super();
+
         const gl = context.gl;
         this.texture = null;
         this.renderbuffer = null;

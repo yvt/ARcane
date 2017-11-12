@@ -9,6 +9,7 @@ import { Blitter } from './subpasses/blit';
 
 import { PresentPass } from './passes/present';
 import { RaytracePass } from './passes/raytrace';
+import { VisualizeColorBufferPass } from './passes/visualize';
 
 import { Scene } from './model';
 import { VoxelData, VoxelDataManager } from './voxeldata';
@@ -24,6 +25,7 @@ export class Renderer
 
     private readonly presentPass: PresentPass;
     private readonly raytracePass: RaytracePass;
+    private readonly visualizeColorBufferPass: VisualizeColorBufferPass;
 
     private lastWidth: number = 0;
     private lastHeight: number = 0;
@@ -50,12 +52,14 @@ export class Renderer
 
         this.presentPass = new PresentPass(this.context);
         this.raytracePass = new RaytracePass(this);
+        this.visualizeColorBufferPass = new VisualizeColorBufferPass(this);
     }
 
     dispose(): void
     {
         this.presentPass.dispose();
         this.raytracePass.dispose();
+        this.visualizeColorBufferPass.dispose();
 
         this.voxel.dispose();
 
