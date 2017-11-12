@@ -12,7 +12,10 @@ import {
 
 import { VoxelData } from '../voxeldata';
 
-export type ShaderPrecision = 'lowp' | 'mediump' | 'highp';
+import { PieShaderModule, PieShaderChunk } from '../shadertk/pieglsl';
+const voxelDataModule: PieShaderModule = require('./voxeldata.glsl');
+const voxelCommonFragModule: PieShaderModule = require('./voxelcommon_frag.glsl');
+const voxelCommonVertModule: PieShaderModule = require('./voxelcommon_vert.glsl');
 
 export class VoxelDataShaderParam
 {
@@ -28,7 +31,11 @@ export class VoxelDataShaderParam
 
 export class VoxelDataShaderObject extends ShaderObject<VoxelDataShaderInstance, VoxelDataShaderParam>
 {
-    readonly densityTexture: Texture2DShaderObject;
+    private readonly pieChunk = new PieShaderChunk<{
+        fetchVoxelData: string;
+        densityTextureSampler: string;
+        fetchVoxel: string;
+    }>(voxelDataModule);
 
     /**
      * A shader function to fetch a voxel from the associated voxel data.
@@ -43,8 +50,9 @@ export class VoxelDataShaderObject extends ShaderObject<VoxelDataShaderInstance,
      *  - `mediump float lod`: specifies the mip level (`0` = most detail).
      *    Must be an integral value.
      */
-    readonly fetchVoxel = allocateIdentifier();
+    readonly fetchVoxelData = this.pieChunk.bindings.fetchVoxelData;
 
+    readonly densityTexture: Texture2DShaderObject;
     private commonModule: VoxelDataShaderModule;
 
     constructor(builder: ShaderBuilder)
@@ -54,30 +62,23 @@ export class VoxelDataShaderObject extends ShaderObject<VoxelDataShaderInstance,
         this.commonModule = builder.requireModule(VoxelDataShaderModuleFactory);
         this.densityTexture = new Texture2DShaderObject(builder, 'mediump');
 
+        this.pieChunk.bind({
+            fetchVoxel: this.commonModule.fetchVoxel,
+            densityTextureSampler: this.densityTexture.u_Texture,
+        });
+
         this.register();
     }
 
-    get densityTextureSampler(): string
-    {
-        return this.densityTexture.u_Texture;
-    }
+    /** Provides a direct access to the contained density texture of type `sampler2D`. */
+    get densityTextureSampler() { return this.densityTexture.u_Texture; }
 
     createInstance(builder: ShaderInstanceBuilder): VoxelDataShaderInstance
     {
         return new VoxelDataShaderInstance(builder, this);
     }
 
-    emit(): string
-    {
-        return `
-        mediump float ${this.fetchVoxel}(highp vec3 voxel, mediump float lod) {
-            return ${this.commonModule.fetchVoxel}(
-                ${this.densityTextureSampler},
-                voxel,
-                lod
-            );
-        }`;
-    }
+    emit() { return this.pieChunk.emit(); }
 }
 
 export class VoxelDataShaderInstance extends ShaderObjectInstance<VoxelDataShaderParam>
@@ -105,35 +106,27 @@ const VoxelDataShaderModuleFactory = (builder: ShaderBuilder) => new VoxelDataSh
 
 class VoxelDataShaderModule extends ShaderModule<any, {}>
 {
-    readonly fetchVoxel = allocateIdentifier();
+    private readonly fragChunk = new PieShaderChunk<{
+        fetchVoxel: string;
+    }>(voxelCommonFragModule);
+    private readonly vertChunk = new PieShaderChunk<{
+        fetchVoxel: string;
+    }>(voxelCommonVertModule);
+
+    readonly fetchVoxel = this.fragChunk.bindings.fetchVoxel;
 
     constructor(builder: ShaderBuilder)
     {
         super(builder);
+
+        this.vertChunk.bind({
+            fetchVoxel: this.fragChunk.bindings.fetchVoxel,
+        });
+
         this.register();
     }
 
-    emitFrag(): string
-    {
-        return `
-        mediump float ${this.fetchVoxel}(mediump sampler2D tex, highp vec3 voxel, mediump float lod) {
-            highp float mipScale = exp2(lod);
-            highp vec2 mapped =
-                voxel.xy * vec2(1.0 / 4096.0, 1.0 / 256.0) +
-                voxel.z  * vec2(256.0 / 4096.0, mipScale / 4096.0 / 16.0);
-            return texture2DLodEXT(tex, mapped, lod).w;
-        }`;
-    }
+    emitFrag() { return this.fragChunk.emit(); }
 
-    emitVert(): string
-    {
-        return `
-        mediump float ${this.fetchVoxel}(mediump sampler2D tex, highp vec3 voxel, mediump float lod) {
-            highp float mipScale = exp2(lod);
-            highp vec2 mapped =
-                voxel.xy * vec2(1.0 / 4096.0, 1.0 / 256.0) +
-                voxel.z  * vec2(256.0 / 4096.0, mipScale / 4096.0 / 16.0);
-            return texture2DLod(tex, mapped, lod).w;
-        }`;
-    }
+    emitVert() { return this.vertChunk.emit(); }
 }

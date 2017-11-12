@@ -2,8 +2,10 @@ import {
     ShaderObject, ShaderBuilder, ShaderObjectInstance,
     ShaderInstanceBuilder, ShaderParameterBuilder
 } from '../shadertk/shadertoolkit';
-import { allocateIdentifier } from '../shadertk/uniqueid';
 import { GLConstants } from '../globjs/constants';
+
+import { PieShaderModule, PieShaderChunk } from '../shadertk/pieglsl';
+const textureModule: PieShaderModule = require('./texture.glsl');
 
 export type ShaderPrecision = 'lowp' | 'mediump' | 'highp';
 
@@ -14,11 +16,21 @@ export interface TextureShaderParameter
 
 export class Texture2DShaderObject extends ShaderObject<Texture2DShaderInstance, TextureShaderParameter>
 {
-    readonly u_Texture = allocateIdentifier();
+    private readonly textureChunk = new PieShaderChunk<{
+        PRECISION: string;
+        u_Texture: string;
+    }>(textureModule);
+
+    readonly u_Texture = this.textureChunk.bindings.u_Texture;
 
     constructor(builder: ShaderBuilder, private readonly precision: ShaderPrecision)
     {
         super(builder);
+
+        // kinda hack but it works anyway
+        this.textureChunk.bind({
+            PRECISION: precision,
+        });
 
         this.register();
     }
@@ -28,10 +40,7 @@ export class Texture2DShaderObject extends ShaderObject<Texture2DShaderInstance,
         return new Texture2DShaderInstance(builder, this);
     }
 
-    emit(): string
-    {
-        return `uniform ${this.precision} sampler2D ${this.u_Texture};`;
-    }
+    emit() { return this.textureChunk.emit(); }
 }
 
 export class Texture2DShaderInstance extends ShaderObjectInstance<TextureShaderParameter>

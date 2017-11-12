@@ -11,7 +11,10 @@ import {
 import {
     TypedShaderInstance, buildShaderTyped, TypedShaderParameter
 } from '../shadertk/shadertoolkittyped';
-import { allocateIdentifier } from '../shadertk/uniqueid';
+
+import { PieShaderModule, PieShaderChunk } from '../shadertk/pieglsl';
+const blitFragModule: PieShaderModule = require('./blit_frag.glsl');
+const blitVertModule: PieShaderModule = require('./blit_vert.glsl');
 
 import {
     Texture2DShaderObject, Texture2DShaderInstance, TextureShaderParameter
@@ -73,10 +76,22 @@ interface BlitShaderParam
 
 class BlitShaderModule extends ShaderModule<BlitShaderInstance, BlitShaderParam>
 {
-    readonly a_Position = allocateIdentifier();
-    readonly u_Input = allocateIdentifier();
-    readonly u_Output = allocateIdentifier();
-    readonly u_Lod = allocateIdentifier();
+    private readonly fragChunk = new PieShaderChunk<{
+        u_Lod: string;
+        inputTexture: string;
+        v_TexCoord: string;
+    }>(blitFragModule);
+    private readonly vertChunk = new PieShaderChunk<{
+        a_Position: string;
+        u_Input: string;
+        u_Output: string;
+        v_TexCoord: string;
+    }>(blitVertModule);
+
+    readonly a_Position = this.vertChunk.bindings.a_Position;
+    readonly u_Input = this.vertChunk.bindings.u_Input;
+    readonly u_Output = this.vertChunk.bindings.u_Output;
+    readonly u_Lod = this.fragChunk.bindings.u_Lod;
 
     readonly texture: Texture2DShaderObject;
 
@@ -86,6 +101,14 @@ class BlitShaderModule extends ShaderModule<BlitShaderInstance, BlitShaderParam>
 
         this.texture = new Texture2DShaderObject(builder, precision);
 
+        this.fragChunk.bind({
+            // varying
+            v_TexCoord: this.vertChunk.bindings.v_TexCoord,
+
+            // child object
+            inputTexture: this.texture.u_Texture,
+        });
+
         this.register();
     }
 
@@ -94,36 +117,9 @@ class BlitShaderModule extends ShaderModule<BlitShaderInstance, BlitShaderParam>
         return new BlitShaderInstance(builder, this);
     }
 
-    emitFrag()
-    {
-        // FIXME: how do I specify the output color precision
-        return `
-            varying highp vec2 v_TexCoord;
-            uniform highp float ${this.u_Lod};
+    emitFrag() { return this.fragChunk.emit(); }
 
-            void main() {
-                gl_FragColor = texture2DLodEXT(${this.texture.u_Texture}, v_TexCoord, ${this.u_Lod});
-            }
-        `;
-    }
-
-    emitVert()
-    {
-        return `
-            attribute highp vec2 ${this.a_Position};
-
-            uniform highp vec4 ${this.u_Input};
-            uniform highp vec4 ${this.u_Output};
-
-            varying highp vec2 v_TexCoord;
-
-            void main() {
-                highp vec2 pos = ${this.a_Position} * 0.5 + 0.5;
-                gl_Position = vec4(mix(${this.u_Output}.xy, ${this.u_Output}.zw, pos), 0.0, 1.0);
-                v_TexCoord = mix(${this.u_Input}.xy, ${this.u_Input}.zw, pos);
-            }
-        `;
-    }
+    emitVert() { return this.vertChunk.emit(); }
 }
 
 class BlitShaderInstance extends ShaderModuleInstance<BlitShaderParam>
