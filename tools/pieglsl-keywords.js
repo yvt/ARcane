@@ -5,7 +5,7 @@ const glslCompressedKeywords = [
     "else", "for", "if", "discard", "return", "switch", "case", "default",
     "bvec2", "bvec3", "bvec4", "ivec2", "ivec3", "ivec4", "uvec2", "uvec3",
     "uvec4", "vec2", "vec3", "vec4", "mat2", "mat3", "mat4", "centroid",
-    "in", "inout", "uniform",
+    "in", "inout", "out", "uniform",
     "flat", "smooth", "layout", "mat2x2", "mat2x3", "mat2x4",
     "mat3x2", "mat3x3", "mat3x4", "mat4x2", "mat4x3", "mat4x4",
     "sampler2D", "sampler3D", "samplerCube", "sampler2DShadow",
@@ -14,7 +14,13 @@ const glslCompressedKeywords = [
     "usampler2D", "usampler3D", "usamplerCube", "usampler2DArray",
     "struct", "void", "while", "#if", "#else", "#elif", "#endif", "defined",
     "#define", "#pragma",
-    "lowp", "mediump", "highp",
+    "lowp", "mediump", "highp", "true", "false",
+
+    // WebGL 1.0 keywords, function, and vars
+    "gl_FragColor", "attribute", "varying",
+
+    "texture2D", "texture2DProj", "texture2DLod", "texture2DProjLod",
+    "texture2DLodEXT", "textureCube", "textureCubeLod", "textureCubeLodEXT",
 
     // built-in functions
     "radians", "degrees", "sin", "cos", "tan", "asin", "acos", "atan",
@@ -41,7 +47,10 @@ const glslCompressedKeywords = [
     // built-in vars
     "gl_VertexID", "gl_InstanceID", "gl_Position", "gl_PointSize",
     "gl_FragCoord", "gl_FrontFacing", "gl_FragDepth", "gl_PointCoord",
-    "gl_DepthRange", "gl_FragColor"
+    "gl_DepthRange",
+
+    // entry point
+    "main",
 ];
 
 module.exports = {

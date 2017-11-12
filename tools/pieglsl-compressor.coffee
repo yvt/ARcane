@@ -102,7 +102,7 @@ class Lexer
   _skipTrivial: () ->
     {index, code} = @
     state = 0
-    while index < code.length
+    while index < code.length and state != -1
       switch state
         when 0
           switch code.charCodeAt(index)
@@ -122,7 +122,9 @@ class Lexer
             when 0x2a # asterisk -- block comment
               state = 3
             else
-              state = 0
+              # turned out that this slash does not belong to any comment syntax
+              state = -1
+              index -= 1
               continue
         when 2 # skipping line comment
           switch code.charCodeAt(index)
