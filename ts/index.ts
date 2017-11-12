@@ -5,6 +5,10 @@ if (process.env.NODE_ENV !== 'production') {
     logManager.enableAllTopics();
 }
 
+if ('あ'.charCodeAt(0) != 0x3042) {
+    throw new Error("The application was loaded with a wrong encoding.");
+}
+
 const Stats = require('stats-js');
 import { mat4 } from 'gl-matrix';
 import { Renderer } from './draw/main';
