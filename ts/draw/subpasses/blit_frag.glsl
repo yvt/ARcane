@@ -1,8 +1,6 @@
 // exports
 #pragma global u_Lod
 #pragma global inputTexture
-
-// imports
 #pragma global v_TexCoord
 
 varying highp vec2 v_TexCoord;

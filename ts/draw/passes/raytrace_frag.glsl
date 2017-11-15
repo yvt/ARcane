@@ -1,9 +1,9 @@
 // exports
+#pragma global v_RayStart
+#pragma global v_RayEnd
 #pragma global u_ViewProjMat
 
 // imports
-#pragma global v_RayStart
-#pragma global v_RayEnd
 #pragma global fetchVoxelData
 
 // private

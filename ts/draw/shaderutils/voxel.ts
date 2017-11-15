@@ -119,9 +119,7 @@ class VoxelDataShaderModule extends ShaderModule<any, {}>
     {
         super(builder);
 
-        this.vertChunk.bind({
-            fetchVoxel: this.fragChunk.bindings.fetchVoxel,
-        });
+        this.vertChunk.inherit(this.fragChunk);
 
         this.register();
     }

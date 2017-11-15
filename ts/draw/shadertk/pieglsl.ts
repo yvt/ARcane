@@ -54,6 +54,18 @@ export class PieShaderChunk<T extends { [name: string]: string }>
         }
     }
 
+    /**
+     * Replace concrete symbol names with those defined by the spcified
+     * `PieShaderChunk`.
+     *
+     * This operation causes two `PieShaderChunk` to share the same concrete
+     * symbol name for symbols with an identical name.
+     */
+    inherit<S extends { [name: string]: string }>(other: PieShaderChunk<S>)
+    {
+        this.bind(other.bindings);
+    }
+
     /** Mappings from symbol names to concrete symbol names. */
     get bindings(): Readonly<T>
     {

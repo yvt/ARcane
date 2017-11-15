@@ -109,12 +109,10 @@ class BlitShaderModule extends ShaderModule<BlitShaderInstance, BlitShaderParam>
         this.texture = new Texture2DShaderObject(builder, precision);
 
         this.fragChunk.bind({
-            // varying
-            v_TexCoord: this.vertChunk.bindings.v_TexCoord,
-
             // child object
             inputTexture: this.texture.u_Texture,
         });
+        this.vertChunk.inherit(this.fragChunk);
 
         this.register();
     }

@@ -168,13 +168,10 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
         this.voxelData = new VoxelDataShaderObject(builder);
 
         this.fragChunk.bind({
-            // varyings
-            v_RayStart: this.vertChunk.bindings.v_RayStart,
-            v_RayEnd: this.vertChunk.bindings.v_RayEnd,
-
             // child object
             fetchVoxelData: this.voxelData.fetchVoxelData,
         });
+        this.vertChunk.inherit(this.fragChunk);
 
         this.register();
     }

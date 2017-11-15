@@ -173,13 +173,11 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
         this.voxelData = new VoxelDataShaderObject(builder);
 
         this.fragChunk.bind({
-            // varyings
-            v_TexCoord: this.vertChunk.bindings.v_TexCoord,
-
             // child object
             g1Texture: this.g1Texture.u_Texture,
             fetchVoxelData: this.voxelData.fetchVoxelData,
         });
+        this.vertChunk.inherit(this.fragChunk);
 
         this.register();
     }

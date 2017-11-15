@@ -1,7 +1,7 @@
 // exports
+#pragma global v_TexCoord
 
 // imports
-#pragma global v_TexCoord
 #pragma global g1Texture
 #pragma global fetchVoxelData
 
