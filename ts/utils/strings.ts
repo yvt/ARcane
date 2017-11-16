@@ -17,3 +17,16 @@ export function fillWithRightAligned(str: string, ln: number, ch: string): strin
 {
     return stringRepeat(ch, Math.max(0, ln - str.length)) + str;
 }
+
+export function addLineNumbers(text: string): string
+{
+    const lines = text.split('\n');
+    let numDigits = 0;
+    for (let i = lines.length; i > 0;) {
+        i = i / 10 | 0;
+        ++numDigits;
+    }
+    return lines
+        .map((line, i) => fillWithRightAligned(String(i + 1), numDigits, ' ') + ' ' + line)
+        .join('\n');
+}

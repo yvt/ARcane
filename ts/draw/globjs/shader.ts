@@ -1,4 +1,5 @@
 import { IDisposable } from "../../utils/interfaces";
+import { addLineNumbers } from '../../utils/strings';
 import { GLContext } from "./context";
 import { GLConstants } from "./constants";
 
@@ -115,7 +116,13 @@ export class GLShader implements IDisposable
         if (!gl.getShaderParameter(handle, GLConstants.COMPILE_STATUS)) {
             const infoLog = gl.getShaderInfoLog(handle);
             gl.deleteShader(handle);
-            throw new Error(`Shader compilation failed.:\n\n${infoLog}`);
+
+            // Attach the source code annotated with line numbers to make
+            // debugging easier
+            const sourceAnnotated = addLineNumbers(source);
+
+            throw new Error(`Shader compilation failed.:\n\n${infoLog}\n\n` +
+                `The source code is shown below (with line numbers added):\n${sourceAnnotated}`);
         }
 
         return new GLShader(context, handle);
