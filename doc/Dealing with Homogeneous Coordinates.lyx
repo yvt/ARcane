@@ -1,0 +1,492 @@
+#LyX 2.2 created this file. For more info see http://www.lyx.org/
+\lyxformat 508
+\begin_document
+\begin_header
+\save_transient_properties true
+\origin unavailable
+\textclass article
+\use_default_options true
+\begin_modules
+logicalmkup
+\end_modules
+\maintain_unincluded_children false
+\language english
+\language_package default
+\inputencoding auto
+\fontencoding global
+\font_roman "default" "default"
+\font_sans "default" "default"
+\font_typewriter "default" "default"
+\font_math "auto" "auto"
+\font_default_family default
+\use_non_tex_fonts false
+\font_sc false
+\font_osf false
+\font_sf_scale 100 100
+\font_tt_scale 100 100
+\graphics default
+\default_output_format default
+\output_sync 0
+\bibtex_command default
+\index_command default
+\paperfontsize default
+\spacing single
+\use_hyperref true
+\pdf_title "Storing 3D Data Inside a 2D Texture"
+\pdf_author "yvt <i@yvt.jp>"
+\pdf_bookmarks true
+\pdf_bookmarksnumbered false
+\pdf_bookmarksopen false
+\pdf_bookmarksopenlevel 1
+\pdf_breaklinks false
+\pdf_pdfborder true
+\pdf_colorlinks false
+\pdf_backref false
+\pdf_pdfusetitle true
+\papersize default
+\use_geometry false
+\use_package amsmath 1
+\use_package amssymb 1
+\use_package cancel 1
+\use_package esint 1
+\use_package mathdots 1
+\use_package mathtools 1
+\use_package mhchem 1
+\use_package stackrel 1
+\use_package stmaryrd 1
+\use_package undertilde 1
+\cite_engine basic
+\cite_engine_type default
+\biblio_style plain
+\use_bibtopic false
+\use_indices false
+\paperorientation portrait
+\suppress_date false
+\justification true
+\use_refstyle 1
+\index Index
+\shortcut idx
+\color #008000
+\end_index
+\secnumdepth 3
+\tocdepth 3
+\paragraph_separation indent
+\paragraph_indentation default
+\quotes_language english
+\papercolumns 1
+\papersides 1
+\paperpagestyle default
+\tracking_changes false
+\output_changes false
+\html_math_output 0
+\html_css_as_file 0
+\html_be_strict false
+\end_header
+
+\begin_body
+
+\begin_layout Title
+Dealing With Homogeneous Coordinates
+\end_layout
+
+\begin_layout Author
+yvt <
+\begin_inset Flex URL
+status open
+
+\begin_layout Plain Layout
+
+i@yvt.jp
+\end_layout
+
+\end_inset
+
+>
+\end_layout
+
+\begin_layout Date
+November 12, 2017
+\end_layout
+
+\begin_layout Abstract
+Homogeneous coordinates are ubiquitous in computer graphics as they provide
+ a single framework that allows common vector operations to be treated in
+ a unified way.
+ However, a care must be taken for other operations, for example, differentiatio
+n.
+ This document discusses problems arising from performing such operations
+ on homogeneous coordinates.
+\end_layout
+
+\begin_layout Standard
+It is a common practice in computer graphics to represent a transformation
+ using a transformation matrix that operates on homogeneous coordinates.
+ The reason of this is that they allow common vector operations such as
+ translation, rotation, scaling, perspective projection, and a chain of
+ such operations to be represented as a matrix.
+\end_layout
+
+\begin_layout Standard
+blah-blah todo
+\end_layout
+
+\begin_layout Section
+Transformation Matrices
+\end_layout
+
+\begin_layout Standard
+Linear transformations can be represented by matrices.
+ A linear transformation 
+\begin_inset Formula $T$
+\end_inset
+
+ : 
+\begin_inset Formula $\mathbb{R}^{n}\to\mathbb{R}^{m}$
+\end_inset
+
+ can represented using some 
+\begin_inset Formula $m\times n$
+\end_inset
+
+ matrix 
+\begin_inset Formula $A$
+\end_inset
+
+, which we call the transformation matrix of 
+\begin_inset Formula $T$
+\end_inset
+
+, as the following:
+\begin_inset Formula 
+\[
+T(\vec{x})=A\vec{x}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+Linear transformations on Cartesian coordinates are not very useful by themselve
+s since they cannot represent some operations crucial to computer graphics,
+ for example, translations and perspective projection.
+ Working on the homogeneous coordinates alleviates this restriction.
+\end_layout
+
+\begin_layout Standard
+To convert a point from or to the homogeneous coordinates, one must add
+ or remove an extra component to its position vector by means of one of
+ the following equations:
+\begin_inset Newline newline
+\end_inset
+
+To convert a position vector 
+\begin_inset Formula $\vec{x}$
+\end_inset
+
+ to homogeneous coordinates 
+\begin_inset Formula $[\vec{x_{c}},y_{c}]$
+\end_inset
+
+ (
+\begin_inset Formula $w\in\mathbb{R}\setminus\{0\}$
+\end_inset
+
+):
+\begin_inset Formula 
+\begin{equation}
+\vec{x_{c}}=w\vec{x},\,y_{c}=w\label{eq:to-homo}
+\end{equation}
+
+\end_inset
+
+To convert them back (this is often referred to as 
+\begin_inset Flex Emph
+status open
+
+\begin_layout Plain Layout
+perspective division
+\end_layout
+
+\end_inset
+
+):
+\begin_inset Formula 
+\begin{equation}
+\vec{x}=\frac{1}{y_{c}}\vec{x_{c}}\label{eq:from-homo}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Standard
+As we have seen before, a vector in the homogeneous coordinate has one extra
+ compoent, which is later used as a divisor when converting it back to the
+ Carterisan coordinates and therefore must be treated specially.
+ Likewise, we decompose a 
+\begin_inset Formula $n+1\times n+1$
+\end_inset
+
+ transformation matrix 
+\begin_inset Formula $M$
+\end_inset
+
+ into a 
+\begin_inset Formula $n\times n$
+\end_inset
+
+ matrix 
+\begin_inset Formula $M_{11}$
+\end_inset
+
+, 
+\begin_inset Formula $1\times n$
+\end_inset
+
+ matrix 
+\begin_inset Formula $M_{21}$
+\end_inset
+
+, 
+\begin_inset Formula $n\times1$
+\end_inset
+
+ matrix (or a vector) 
+\begin_inset Formula $M_{12}$
+\end_inset
+
+, and scalar value 
+\begin_inset Formula $M_{22}$
+\end_inset
+
+ as shown below:
+\begin_inset Formula 
+\begin{align*}
+M & =\begin{bmatrix}M_{11} & M_{12}\\
+M_{21} & M_{22}
+\end{bmatrix}\\
+ & =\left[\begin{array}{ccc|c}
+(M_{11})_{1,1} & \cdots & (M_{11})_{1,n} & (M_{12})_{1,1}\\
+\vdots & \ddots & \vdots & \vdots\\
+(M_{11})_{n,1} & \cdots & (M_{11})_{n,n} & (M_{12})_{n,1}\\
+\hline (M_{21})_{1,1} & \cdots & (M_{21})_{1,n} & M_{22}
+\end{array}\right]
+\end{align*}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Affine Transformations
+\end_layout
+
+\begin_layout Standard
+There is a specific class of transformation matrices 
+\begin_inset Formula $M$
+\end_inset
+
+ satisfying the following restrictions that represents affine transformations:
+\begin_inset Formula 
+\[
+M_{21}=\vec{0}^{T},M_{22}=1
+\]
+
+\end_inset
+
+The last restriction 
+\begin_inset Formula $M_{22}=1$
+\end_inset
+
+ is actually not required but removes redundancy from the matrices and simplifie
+s some derivations involving them.
+ Any 
+\begin_inset Formula $M$
+\end_inset
+
+ representing an affine transformation can be made 
+\begin_inset Formula $M_{22}=1$
+\end_inset
+
+ by having its all components divided by 
+\begin_inset Formula $M_{22}$
+\end_inset
+
+.
+\end_layout
+
+\begin_layout Subsection
+Transforming a Point
+\end_layout
+
+\begin_layout Standard
+Transforming a point is easy as apple pie; you just have to convert a given
+ point to the homogeneous coordinates by using the equation 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:to-homo"
+
+\end_inset
+
+, multiply a transformation matrix, and finally convert it back by using
+ the equation 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:from-homo"
+
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{align}
+\begin{bmatrix}\vec{x_{1}}\\
+y_{1}
+\end{bmatrix} & =\begin{bmatrix}\vec{x}\\
+1
+\end{bmatrix}\nonumber \\
+\begin{bmatrix}\vec{x_{2}}\\
+y_{2}
+\end{bmatrix} & =M\begin{bmatrix}\vec{x_{1}}\\
+y_{1}
+\end{bmatrix}=\begin{bmatrix}M_{11} & M_{12}\\
+M_{21} & M_{22}
+\end{bmatrix}\begin{bmatrix}\vec{x_{1}}\\
+y_{1}
+\end{bmatrix}\nonumber \\
+T(\vec{x}) & =\frac{1}{y_{2}}\vec{x_{2}}\nonumber \\
+ & =\frac{1}{M_{21}\vec{x}+M_{22}}(M_{11}\vec{x}+M_{12})\label{eq:transform-point}
+\end{align}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Transforming a Velocity / Jacobian Matrix
+\end_layout
+
+\begin_layout Standard
+By using the result of the equation 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:transform-point"
+
+\end_inset
+
+ we obtain:
+\end_layout
+
+\begin_layout Standard
+\begin_inset Formula 
+\[
+\frac{d}{dt}T(\vec{x}+t\vec{x'})=\frac{1}{\left(M_{21}\vec{x}+M_{22}\right)^{2}}\left\{ \left(M_{11}\vec{x'}\right)\left(M_{21}\vec{x}+M_{22}\right)-\left(M_{11}\vec{x}+M_{12}\right)\left(M_{21}\vec{x'}\right)\right\} 
+\]
+
+\end_inset
+
+We can make this about 20% simpler if we incorporate 
+\begin_inset Formula $T(\vec{x})$
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{equation}
+\frac{d}{dt}T(\vec{x}+t\vec{x'})=\frac{1}{M_{21}\vec{x}+M_{22}}\left(M_{11}\vec{x'}-T(\vec{x})M_{21}\vec{x'}\right)\label{eq:transform-dir}
+\end{equation}
+
+\end_inset
+
+Notice that we can reuse the value of 
+\begin_inset Formula $\frac{1}{M_{21}\vec{x}+M_{22}}$
+\end_inset
+
+ (or, 
+\begin_inset Formula $1/y_{2}$
+\end_inset
+
+) computed during the equation 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:transform-point"
+
+\end_inset
+
+.
+ Or, you can remove the fraction altogether if you are only interested in
+ the direction (for example, for a surface tangent), not the magnitude.
+\end_layout
+
+\begin_layout Standard
+From the equation 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:transform-dir"
+
+\end_inset
+
+ we can also compute the Jacobian matrix of 
+\begin_inset Formula $T$
+\end_inset
+
+:
+\begin_inset Formula 
+\begin{equation}
+J_{T}(\vec{x})=\frac{1}{M_{21}\vec{x}+M_{22}}\left(M_{11}-T(\vec{x})M_{21}\right)\label{eq:jacobian}
+\end{equation}
+
+\end_inset
+
+
+\end_layout
+
+\begin_layout Subsection
+Transforming a Normal Vector
+\end_layout
+
+\begin_layout Standard
+You cannot transform a normal vector with the equation 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:jacobian"
+
+\end_inset
+
+ because a normal vector is a covector.
+ If you have a normal vector 
+\begin_inset Formula $\vec{r}$
+\end_inset
+
+, you must use the transposed inverse of the Jacobian matrix to transform
+ it (
+\begin_inset Formula $k\in\mathbb{R}\setminus\{0\}$
+\end_inset
+
+ is an arbitrary scaling factor, for example, 
+\begin_inset Formula $y_{2}$
+\end_inset
+
+ from the equation 
+\begin_inset CommandInset ref
+LatexCommand eqref
+reference "eq:transform-point"
+
+\end_inset
+
+):
+\begin_inset Formula 
+\[
+\vec{r'}=\left(kJ_{T}(\vec{x})\right)^{-T}\vec{r}
+\]
+
+\end_inset
+
+
+\end_layout
+
+\end_body
+\end_document

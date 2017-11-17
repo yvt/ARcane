@@ -14,6 +14,6 @@ varying highp vec4 v_RayEnd;
 void main() {
     gl_Position = vec4(a_Position, 0.0, 1.0);
 
-    v_RayStart = u_InvViewProjMat * vec4(a_Position, -1.0, 1.0);
-    v_RayEnd =   u_InvViewProjMat * vec4(a_Position,  1.0, 1.0);
+    v_RayStart = u_InvViewProjMat * vec4(a_Position,  32768.0, 1.0);
+    v_RayEnd =   u_InvViewProjMat * vec4(a_Position,  0.0, 1.0);
 }

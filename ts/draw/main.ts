@@ -11,6 +11,7 @@ import { PresentPass } from './passes/present';
 import { RaytracePass } from './passes/raytrace';
 import { GlobalLightingPass } from './passes/globallighting';
 import { VisualizeColorBufferPass } from './passes/visualize';
+import { SsaoPass } from './passes/ssao/toplevel';
 
 import { Scene } from './model';
 import { VoxelData, VoxelDataManager } from './voxeldata';
@@ -26,6 +27,7 @@ export class Renderer
 
     private readonly presentPass: PresentPass;
     private readonly raytracePass: RaytracePass;
+    private readonly ssaoPass: SsaoPass;
     private readonly globalLightingPass: GlobalLightingPass;
     private readonly visualizeColorBufferPass: VisualizeColorBufferPass;
 
@@ -54,6 +56,7 @@ export class Renderer
 
         this.presentPass = new PresentPass(this.context);
         this.raytracePass = new RaytracePass(this);
+        this.ssaoPass = new SsaoPass(this);
         this.globalLightingPass = new GlobalLightingPass(this);
         this.visualizeColorBufferPass = new VisualizeColorBufferPass(this);
     }
@@ -62,6 +65,7 @@ export class Renderer
     {
         this.presentPass.dispose();
         this.raytracePass.dispose();
+        this.ssaoPass.dispose();
         this.globalLightingPass.dispose();
         this.visualizeColorBufferPass.dispose();
 
@@ -81,7 +85,9 @@ export class Renderer
             ops,
         );
 
-        const lit = this.globalLightingPass.setup(g1, ops);
+        const ssao = this.ssaoPass.setup(g1, ops);
+
+        const lit = this.globalLightingPass.setup(g1, ssao, ops);
 
         const output = this.visualizeColorBufferPass.setup(lit, ops);
 

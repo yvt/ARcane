@@ -162,10 +162,10 @@ void main() {
         hitPosition = clamp(hitPosition, hitVoxel, hitVoxel + (1.0 - 1.0 / 8.0));
 
         // Construct the GBuffer1 data
-        gl_FragColor.xyz = hitPosition;
+        gl_FragColor.yzw = hitPosition;
 
         highp vec4 clipCoord = u_ViewProjMat * vec4(hitPosition, 1.0);
-        gl_FragColor.w = clipCoord.z / clipCoord.w;
+        gl_FragColor.x = clipCoord.z / clipCoord.w;
     } else {
         gl_FragColor = vec4(1.0);
     }

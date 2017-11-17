@@ -47,7 +47,21 @@ function render() {
         1.0,
         canvas.width / canvas.height,
         1,
-        1000
+        500
+    );
+
+    // Convert Z from (-1 -> 1) to (32768 -> 0) (for more precision)
+    mat4.multiply(
+        renderer.scene.projectionMatrix,
+        mat4.scale(
+            mat4.create(),
+            mat4.fromTranslation(
+                mat4.create(),
+                [0, 0, 16384]
+            ),
+            [1, 1, -16384]
+        ),
+        renderer.scene.projectionMatrix,
     );
 
     stats.begin();

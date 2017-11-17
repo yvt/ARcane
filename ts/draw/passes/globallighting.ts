@@ -57,7 +57,7 @@ export class GlobalLightingPass
     {
     }
 
-    setup(g1: TextureRenderBufferInfo, ops: RenderOperation<GLContext>[]): TextureRenderBufferInfo
+    setup(g1: TextureRenderBufferInfo, ssao: TextureRenderBufferInfo, ops: RenderOperation<GLContext>[]): TextureRenderBufferInfo
     {
         const {width, height} = g1;
         const lit = new TextureRenderBufferInfo(
@@ -67,7 +67,7 @@ export class GlobalLightingPass
         );
 
         ops.push({
-            inputs: { g1 },
+            inputs: { g1, ssao },
             outputs: { lit },
             optionalOutputs: [],
             name: "Global Lighting",
@@ -75,6 +75,7 @@ export class GlobalLightingPass
                 this,
                 downcast(TextureRenderBuffer, cfg.outputs['lit']),
                 downcast(TextureRenderBuffer, cfg.inputs['g1']),
+                downcast(TextureRenderBuffer, cfg.inputs['ssao']),
             ),
         });
 
@@ -91,6 +92,7 @@ class GlobalLightingOperator implements RenderOperator
         private pass: GlobalLightingPass,
         private outputLit: TextureRenderBuffer,
         private g1: TextureRenderBuffer,
+        private ssao: TextureRenderBuffer,
     )
     {
         this.shaderParams = pass.shaderInstance.createParameter();
@@ -122,11 +124,12 @@ class GlobalLightingOperator implements RenderOperator
         mat4.invert(params.invViewProjMat, params.viewProjMat);
         params.voxelData.voxelData = voxel;
         params.g1Texture.texture = this.g1.texture;
+        params.ssaoTexture.texture = this.ssao.texture;
 
         context.framebuffer = this.framebuffer;
         context.states = GLStateFlags.Default;
         context.drawBuffers = GLDrawBufferFlags.Color0 | GLDrawBufferFlags.ColorRGBA;
-        gl.viewport(0, 0, this.g1.width, this.g1.height);
+        gl.viewport(0, 0, this.outputLit.width, this.outputLit.height);
 
         const {shaderInstance} = pass;
         gl.useProgram(shaderInstance.program.handle);
@@ -146,6 +149,7 @@ interface GlobalLightingShaderParam
     invViewProjMat: mat4;
     voxelData: VoxelDataShaderParam;
     g1Texture: TextureShaderParameter;
+    ssaoTexture: TextureShaderParameter;
 }
 
 class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstance, GlobalLightingShaderParam>
@@ -153,6 +157,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
     private readonly fragChunk = new PieShaderChunk<{
         v_TexCoord: string;
         g1Texture: string;
+        ssaoTexture: string;
         fetchVoxelData: string;
     }>(globalLightingFragModule);
     private readonly vertChunk = new PieShaderChunk<{
@@ -163,6 +168,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
     readonly a_Position = this.vertChunk.bindings.a_Position;
 
     readonly g1Texture: Texture2DShaderObject;
+    readonly ssaoTexture: Texture2DShaderObject;
     readonly voxelData: VoxelDataShaderObject;
 
     constructor(builder: ShaderBuilder)
@@ -170,11 +176,13 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
         super(builder);
 
         this.g1Texture = new Texture2DShaderObject(builder, 'mediump');
+        this.ssaoTexture = new Texture2DShaderObject(builder, 'mediump');
         this.voxelData = new VoxelDataShaderObject(builder);
 
         this.fragChunk.bind({
             // child object
             g1Texture: this.g1Texture.u_Texture,
+            ssaoTexture: this.ssaoTexture.u_Texture,
             fetchVoxelData: this.voxelData.fetchVoxelData,
         });
         this.vertChunk.inherit(this.fragChunk);
@@ -197,6 +205,7 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
     readonly a_Position: number;
 
     private readonly g1Texture: Texture2DShaderInstance;
+    private readonly ssaoTexture: Texture2DShaderInstance;
     private readonly voxelData: VoxelDataShaderInstance;
 
     constructor(builder: ShaderInstanceBuilder, parent: GlobalLightingShaderModule)
@@ -207,6 +216,7 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
         this.a_Position = gl.getAttribLocation(builder.program.handle, parent.a_Position);
 
         this.g1Texture = builder.getUnwrap(parent.g1Texture);
+        this.ssaoTexture = builder.getUnwrap(parent.ssaoTexture);
         this.voxelData = builder.getUnwrap(parent.voxelData);
     }
 
@@ -217,6 +227,7 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
             invViewProjMat: mat4.create(),
             voxelData: builder.getUnwrap(this.voxelData),
             g1Texture: builder.getUnwrap(this.g1Texture),
+            ssaoTexture: builder.getUnwrap(this.ssaoTexture),
         };
     }
 
