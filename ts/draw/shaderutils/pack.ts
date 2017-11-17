@@ -1,12 +1,10 @@
 import {
     ShaderModule, ShaderBuilder, ShaderModuleInstance,
-    ShaderInstanceBuilder, ShaderParameterBuilder,
     ShaderModuleFactory,
 } from '../shadertk/shadertoolkit';
-import { GLConstants } from '../globjs/constants';
 
 import { PieShaderModule, PieShaderChunk } from '../shadertk/pieglsl';
-const packModule: PieShaderModule = require('./pack.glsl');
+const pieModule: PieShaderModule = require('./pack.glsl');
 
 export const PackShaderModuleFactory: ShaderModuleFactory<PackShaderModule> =
     (builder) => new PackShaderModule(builder);
@@ -14,10 +12,12 @@ export const PackShaderModuleFactory: ShaderModuleFactory<PackShaderModule> =
 export class PackShaderModule extends ShaderModule<PackShaderInstance, {}>
 {
     private readonly pieChunk = new PieShaderChunk<{
-        u_Texture: string;
-    }>(packModule);
+        u14fp16Encode: string;
+        u14fp16Decode: string;
+    }>(pieModule);
 
-    readonly u_Texture = this.pieChunk.bindings.u_Texture;
+    readonly u14fp16Encode = this.pieChunk.bindings.u14fp16Encode;
+    readonly u14fp16Decode = this.pieChunk.bindings.u14fp16Decode;
 
     constructor(builder: ShaderBuilder)
     {
@@ -28,14 +28,6 @@ export class PackShaderModule extends ShaderModule<PackShaderInstance, {}>
     emit() { return this.pieChunk.emit(); }
 }
 
-export class PackShaderInstance extends ShaderModuleInstance<{}>
+class PackShaderInstance extends ShaderModuleInstance<{}>
 {
-    private readonly u_Texture: WebGLUniformLocation;
-
-    readonly textureStage: number;
-
-    constructor(builder: ShaderInstanceBuilder)
-    {
-        super(builder);
-    }
 }
