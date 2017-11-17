@@ -12,28 +12,12 @@ export interface VoxelDataContext
 
 export class VoxelDataManager implements IDisposable
 {
-    /** Temporary image storage used to generate a mip pyramid. */
-    private readonly tempTex: WebGLTexture;
-
     constructor(public readonly context: VoxelDataContext)
     {
-        const {gl} = context.context;
-
-        this.tempTex = gl.createTexture()!;
-        gl.bindTexture(GLConstants.TEXTURE_2D, this.tempTex);
-        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.NEAREST);
-        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.NEAREST);
-        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_S, GLConstants.CLAMP_TO_EDGE);
-        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.CLAMP_TO_EDGE);
-
-        gl.texImage2D(GLConstants.TEXTURE_2D, 0, GLConstants.ALPHA, 2048, 2048, 0,
-            GLConstants.ALPHA, GLConstants.UNSIGNED_BYTE, null);
     }
 
     dispose(): void
     {
-        const {gl} = this.context.context;
-        gl.deleteTexture(this.tempTex);
     }
 
     createVoxelData(): VoxelData
