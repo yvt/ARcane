@@ -49,8 +49,8 @@ class VoxelDataImpl extends VoxelData
         gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.REPEAT);
 
         for (let i = 0; i <= 12; ++i) {
-            gl.texImage2D(GLConstants.TEXTURE_2D, i, GLConstants.ALPHA, 4096 >> i, 4096 >> i, 0,
-                GLConstants.ALPHA, GLConstants.UNSIGNED_BYTE, null);
+            gl.texImage2D(GLConstants.TEXTURE_2D, i, GLConstants.LUMINANCE, 4096 >> i, 4096 >> i, 0,
+                GLConstants.LUMINANCE, GLConstants.UNSIGNED_BYTE, null);
         }
 
         // Initialize it with a random data
@@ -72,8 +72,8 @@ class VoxelDataImpl extends VoxelData
             }
         }
 
-        gl.texImage2D(GLConstants.TEXTURE_2D, 0, GLConstants.ALPHA, 4096, 4096, 0,
-            GLConstants.ALPHA, GLConstants.UNSIGNED_BYTE, dens);
+        gl.texImage2D(GLConstants.TEXTURE_2D, 0, GLConstants.LUMINANCE, 4096, 4096, 0,
+            GLConstants.LUMINANCE, GLConstants.UNSIGNED_BYTE, dens);
 
         // And the build mip pyramid
         let cur = dens;
@@ -115,8 +115,8 @@ class VoxelDataImpl extends VoxelData
                 }
             }
 
-            gl.texImage2D(GLConstants.TEXTURE_2D, i, GLConstants.ALPHA, 4096 >> i, 4096 >> i, 0,
-                GLConstants.ALPHA, GLConstants.UNSIGNED_BYTE, next);
+            gl.texImage2D(GLConstants.TEXTURE_2D, i, GLConstants.LUMINANCE, 4096 >> i, 4096 >> i, 0,
+                GLConstants.LUMINANCE, GLConstants.UNSIGNED_BYTE, next);
 
             cur = next;
         }
