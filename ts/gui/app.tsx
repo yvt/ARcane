@@ -2,6 +2,7 @@ import * as React from 'react';
 
 import { LogManager } from '../utils/logger';
 import { Viewport, ViewportPersistent } from './viewport';
+import { ViewportOverlay } from './viewportoverlay';
 
 export interface AppProps
 {
@@ -27,6 +28,7 @@ export class App extends React.Component<AppProps, State>
     {
         return <div>
             <Viewport persistent={this.state.viewportPersistent} />
+            <ViewportOverlay />
         </div>;
     }
 }
