@@ -280,8 +280,6 @@ class ShaderInstanceBuilderImpl implements ShaderInstanceBuilder
         const vs = GLShader.compile(context, vsParts.join(''), GLConstants.VERTEX_SHADER);
         this._inst._glProgram = GLProgram.link(context, [fs, vs]);
 
-        console.log(fsParts.join(''));
-
         context.gl.useProgram(this._inst._glProgram.handle);
 
         // make sure all instances are created
