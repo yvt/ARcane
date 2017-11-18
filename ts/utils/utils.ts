@@ -25,3 +25,15 @@ export function downcastOrNull<T>(ctor: Constructor<T>, obj: any): T | null
     }
     return downcast(ctor, obj);
 }
+
+export function filterMap<T, S>(array: ArrayLike<T>, cb: (e: T, i: number) => S | null | undefined): S[]
+{
+    const result: S[] = [];
+    for (let i = 0; i < array.length; ++i) {
+        const value = cb(array[i], i);
+        if (value != null) {
+            result.push(value);
+        }
+    }
+    return result;
+}

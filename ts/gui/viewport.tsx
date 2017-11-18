@@ -2,8 +2,10 @@ import * as React from 'react';
 const Stats = require('stats-js');
 import { mat4 } from 'gl-matrix';
 
+import { IDisposable } from '../utils/interfaces';
 import { LogManager } from '../utils/logger';
 import { Renderer } from '../draw/main';
+import { createWorkerClient } from '../workerclient';
 
 import { Port } from './utils/port';
 import { RequestAnimationFrame } from './utils/animationframe';
@@ -16,7 +18,7 @@ stats.domElement.style.left = '0px';
 stats.domElement.style.top = '0px';
 document.body.appendChild(stats.domElement);
 
-export class ViewportPersistent
+export class ViewportPersistent implements IDisposable
 {
     readonly canvas = document.createElement('canvas');
     readonly context: WebGLRenderingContext;
@@ -30,7 +32,12 @@ export class ViewportPersistent
         }
         this.context = context;
 
-        this.renderer = new Renderer(this.context, logManager);
+        this.renderer = new Renderer(this.context, logManager, createWorkerClient);
+    }
+
+    dispose(): void
+    {
+        this.renderer.dispose();
     }
 }
 

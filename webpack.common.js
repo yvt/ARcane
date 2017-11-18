@@ -2,7 +2,7 @@ require('coffeescript/register');
 const path = require('path');
 
 module.exports = debug => ({
-  entry: './ts/index.tsx',
+  entry: './ts/index.ts',
   module: {
     rules: [
       {

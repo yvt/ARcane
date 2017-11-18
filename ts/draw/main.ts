@@ -3,6 +3,9 @@ import { Profiler } from "./profiler";
 import { RenderPipeline, RenderOperation, dumpRenderOperationAsDot } from "./scheduler";
 import { GLContext } from "./globjs/context";
 import { TOPICS } from "./log";
+import { WorkerClient } from '../utils/workerboot';
+
+import { service } from './worker/port';
 
 import { QuadRenderer } from './quad';
 import { Blitter } from './subpasses/blit';
@@ -38,7 +41,13 @@ export class Renderer
     readonly voxelManager: VoxelDataManager;
     readonly voxel: VoxelData;
 
-    constructor(public readonly gl: WebGLRenderingContext, public readonly log: LogManager)
+    private worker: WorkerClient;
+
+    constructor(
+        public readonly gl: WebGLRenderingContext,
+        public readonly log: LogManager,
+        private workerFactory: () => WorkerClient,
+    )
     {
         this.context = new GLContext(gl, log);
 
@@ -59,10 +68,15 @@ export class Renderer
         this.ssaoPass = new SsaoPass(this);
         this.globalLightingPass = new GlobalLightingPass(this);
         this.visualizeColorBufferPass = new VisualizeColorBufferPass(this);
+
+        this.worker = workerFactory();
+        this.worker.call(service, {});
     }
 
     dispose(): void
     {
+        this.worker.dispose();
+
         this.presentPass.dispose();
         this.raytracePass.dispose();
         this.ssaoPass.dispose();
