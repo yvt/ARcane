@@ -27,6 +27,9 @@ module.exports = debug => ({
         use: ExtractTextPlugin.extract({
           use: [{
             loader: 'css-loader',
+            options: {
+              modules: true,
+            },
           }, {
             loader: 'less-loader',
           }],
