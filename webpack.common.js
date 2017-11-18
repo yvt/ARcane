@@ -1,6 +1,8 @@
 require('coffeescript/register');
 const path = require('path');
 
+const ExtractTextPlugin = require("extract-text-webpack-plugin");
+
 module.exports = debug => ({
   entry: './ts/index.ts',
   module: {
@@ -19,11 +21,21 @@ module.exports = debug => ({
           }
         },
         exclude: /node_modules/
-      }
+      },
+      {
+        test: /\.less$/,
+        use: ExtractTextPlugin.extract({
+          use: [{
+            loader: 'css-loader',
+          }, {
+            loader: 'less-loader',
+          }],
+        }),
+      },
     ]
   },
   resolve: {
-    extensions: [ '.tsx', '.ts', '.js', '.glsl' ]
+    extensions: [ '.tsx', '.ts', '.js', '.glsl', '.less' ]
   },
   resolveLoader: {
     alias: {
@@ -33,5 +45,8 @@ module.exports = debug => ({
   output: {
     filename: 'bundle.js',
     path: path.resolve(__dirname, 'dist')
-  }
+  },
+  plugins: [
+    new ExtractTextPlugin('bundle.css'),
+  ],
 });

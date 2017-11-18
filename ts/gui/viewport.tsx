@@ -10,6 +10,8 @@ import { createWorkerClient } from '../workerclient';
 import { Port } from './utils/port';
 import { RequestAnimationFrame } from './utils/animationframe';
 
+const classNames = require('./viewport.less');
+
 // DEBUG: stats.js for easy frame rate monitoring
 const stats = new Stats();
 stats.setMode(0);
@@ -101,9 +103,15 @@ export class Viewport extends React.Component<ViewportProps, {}>
     render()
     {
         const {props} = this;
-        return <div className={props.className} style={props.style}>
-            <RequestAnimationFrame onUpdate={this.update} />
-            <Port element={props.persistent.canvas} />
-        </div>;
+        return [
+            <RequestAnimationFrame
+                key="raf"
+                onUpdate={this.update} />,
+            <Port
+                key="port"
+                element={props.persistent.canvas}
+                className={classNames.port + ' ' + props.className}
+                style={props.style} />
+        ];
     }
 }

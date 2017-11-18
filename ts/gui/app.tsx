@@ -25,6 +25,8 @@ export class App extends React.Component<AppProps, State>
     }
     render()
     {
-        return <Viewport persistent={this.state.viewportPersistent} />;
+        return <div>
+            <Viewport persistent={this.state.viewportPersistent} />
+        </div>;
     }
 }
