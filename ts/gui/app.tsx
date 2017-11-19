@@ -44,7 +44,10 @@ export class App extends React.Component<AppProps, State>
     {
         const {state, props} = this;
         return <div className={classNames.app}>
-            <Viewport persistent={state.viewportPersistent} />
+            <Viewport
+                editorState={state.editorState}
+                onChangeEditorState={this.handleEditorStateChange}
+                persistent={state.viewportPersistent} />
             <ViewportOverlay
                 editorState={state.editorState}
                 onChangeEditorState={this.handleEditorStateChange} />

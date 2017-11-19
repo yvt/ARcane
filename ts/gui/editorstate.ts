@@ -1,6 +1,19 @@
+import { vec2, vec3, mat4 } from 'gl-matrix';
+
 export interface EditorState
 {
     readonly displayMode: DisplayMode;
+    readonly camera: CameraState;
+}
+
+export interface CameraState
+{
+    // Note: These `vec3`s are immutable. Do not modify the elements!
+    readonly center: vec3;
+
+    readonly eulerAngles: vec2;
+
+    readonly distance: number;
 }
 
 export enum DisplayMode
@@ -13,5 +26,39 @@ export function createEditorState(): EditorState
 {
     return {
         displayMode: DisplayMode.Normal,
+        camera: {
+            center: vec3.fromValues(128, 128, 128),
+            eulerAngles: vec2.fromValues(Math.PI / 4, Math.PI / 5),
+            distance: 200,
+        },
     };
+}
+
+export const UP = vec3.fromValues(0, 1, 0);
+
+/** Provides computed properties for `CameraState`. */
+export class CameraStateInfo
+{
+    constructor(public readonly data: CameraState)
+    {}
+
+    get eye(): vec3
+    {
+        const {center, eulerAngles, distance} = this.data;
+        const ret = vec3.clone(center);
+        ret[0] += Math.cos(eulerAngles[0]) * Math.cos(eulerAngles[1]) * distance;
+        ret[1] += Math.sin(eulerAngles[1]) * distance;
+        ret[2] += Math.sin(eulerAngles[0]) * Math.cos(eulerAngles[1]) * distance;
+        return ret;
+    }
+
+    get viewMatrix(): mat4
+    {
+        return mat4.lookAt(
+            mat4.create(),
+            this.eye,
+            this.data.center,
+            UP
+        );
+    }
 }
