@@ -4,6 +4,10 @@ import { LogManager } from '../utils/logger';
 import { Viewport, ViewportPersistent } from './viewport';
 import { ViewportOverlay } from './viewportoverlay';
 
+import { createEditorState, EditorState } from './editorstate';
+
+const classNames = require('./app.less');
+
 export interface AppProps
 {
     logManager: LogManager;
@@ -12,6 +16,7 @@ export interface AppProps
 interface State
 {
     viewportPersistent: ViewportPersistent;
+    editorState: EditorState;
 }
 
 export class App extends React.Component<AppProps, State>
@@ -22,13 +27,27 @@ export class App extends React.Component<AppProps, State>
 
         this.state = {
             viewportPersistent: new ViewportPersistent(props.logManager),
+            editorState: createEditorState(),
         };
+
+        this.handleEditorStateChange = this.handleEditorStateChange.bind(this);
     }
+
+    private handleEditorStateChange(newValue: EditorState): void
+    {
+        this.setState({
+            editorState: newValue,
+        });
+    }
+
     render()
     {
-        return <div>
-            <Viewport persistent={this.state.viewportPersistent} />
-            <ViewportOverlay />
+        const {state, props} = this;
+        return <div className={classNames.app}>
+            <Viewport persistent={state.viewportPersistent} />
+            <ViewportOverlay
+                editorState={state.editorState}
+                onChangeEditorState={this.handleEditorStateChange} />
         </div>;
     }
 }
