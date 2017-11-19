@@ -31,6 +31,7 @@
     "@types/gl-matrix": "^2.3.2",
     "@types/react": "^16.0.24",
     "@types/react-dom": "^16.0.3",
+    "bind-decorator": "^1.0.11",
     "gl-matrix": "^2.4.0",
     "react": "^16.1.1",
     "react-dom": "^16.1.1",

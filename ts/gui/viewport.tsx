@@ -1,6 +1,7 @@
 import * as React from 'react';
 const Stats = require('stats-js');
 import { mat4 } from 'gl-matrix';
+import bind from 'bind-decorator';
 
 import { IDisposable } from '../utils/interfaces';
 import { LogManager } from '../utils/logger';
@@ -60,8 +61,6 @@ export class Viewport extends React.Component<ViewportProps, State>
         this.state = {
             loaded: false,
         };
-
-        this.update = this.update.bind(this);
     }
 
     componentDidMount()
@@ -73,6 +72,7 @@ export class Viewport extends React.Component<ViewportProps, State>
         }, 400);
     }
 
+    @bind
     private update(): void
     {
         const {canvas, renderer} = this.props.persistent;

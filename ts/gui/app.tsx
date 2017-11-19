@@ -1,4 +1,5 @@
 import * as React from 'react';
+import bind from 'bind-decorator';
 
 import { LogManager } from '../utils/logger';
 import { Viewport, ViewportPersistent } from './viewport';
@@ -29,10 +30,9 @@ export class App extends React.Component<AppProps, State>
             viewportPersistent: new ViewportPersistent(props.logManager),
             editorState: createEditorState(),
         };
-
-        this.handleEditorStateChange = this.handleEditorStateChange.bind(this);
     }
 
+    @bind
     private handleEditorStateChange(newValue: EditorState): void
     {
         this.setState({

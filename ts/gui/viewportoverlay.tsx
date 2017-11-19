@@ -1,4 +1,5 @@
 import * as React from 'react';
+import bind from 'bind-decorator';
 
 import { RadioList } from './controls/radiolist';
 
@@ -32,10 +33,9 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
         super(props);
 
         this.state = {};
-
-        this.handleDisplayModeChange = this.handleDisplayModeChange.bind(this);
     }
 
+    @bind
     private handleDisplayModeChange(newValue: DisplayMode): void
     {
         this.props.onChangeEditorState({
