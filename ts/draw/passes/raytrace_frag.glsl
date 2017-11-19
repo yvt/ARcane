@@ -159,10 +159,10 @@ void main() {
     )) {
         // Make sure the integral part of hit position is inside the voxel
         // (with FP16 precision)
-        hitPosition = clamp(hitPosition, hitVoxel, hitVoxel + (1.0 - 1.0 / 8.0));
+        highp vec3 hitPositionRounded = clamp(hitPosition, hitVoxel, hitVoxel + (1.0 - 1.0 / 8.0));
 
         // Construct the GBuffer1 data
-        gl_FragColor.yzw = hitPosition;
+        gl_FragColor.yzw = hitPositionRounded;
 
         highp vec4 clipCoord = u_ViewProjMat * vec4(hitPosition, 1.0);
         gl_FragColor.x = clipCoord.z / clipCoord.w;
