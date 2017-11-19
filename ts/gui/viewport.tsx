@@ -15,9 +15,7 @@ const classNames = require('./viewport.less');
 // DEBUG: stats.js for easy frame rate monitoring
 const stats = new Stats();
 stats.setMode(0);
-stats.domElement.style.position = 'fixed';
-stats.domElement.style.left = '0px';
-stats.domElement.style.top = '0px';
+stats.domElement.className = classNames.stats;
 document.body.appendChild(stats.domElement);
 
 export class ViewportPersistent implements IDisposable
