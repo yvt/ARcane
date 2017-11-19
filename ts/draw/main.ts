@@ -54,6 +54,9 @@ export class Renderer
         if (!this.context.ext.EXT_shader_texture_lod) {
             throw new Error("EXT_shader_texture_lod is not supported. Cannot proceed.");
         }
+        if (!this.context.ext.OES_standard_derivatives) {
+            throw new Error("OES_standard_derivatives is not supported. Cannot proceed.");
+        }
 
         this.voxelManager = new VoxelDataManager(this);
         this.voxel = this.voxelManager.createVoxelData();

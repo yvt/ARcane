@@ -9,6 +9,7 @@
 // private
 #pragma global clipRay
 #pragma global voxelTrace
+#pragma global antialiasedHatch
 
 uniform highp mat4 u_ViewProjMat;
 
@@ -145,6 +146,11 @@ bool voxelTrace(
     return false;
 }
 
+mediump float antialiasedHatch(mediump float fraction, mediump float width) {
+    mediump float lineWidth = 0.05;
+    return clamp((fraction - lineWidth) / width + 0.5, 0.0, 1.0);
+}
+
 void main() {
     // Render a cube
     highp vec3 rayStart = v_RayStart.xyz / v_RayStart.w;
@@ -163,10 +169,29 @@ void main() {
 
         // Construct the GBuffer1 data
         gl_FragColor.yzw = hitPositionRounded;
-
-        highp vec4 clipCoord = u_ViewProjMat * vec4(hitPosition, 1.0);
-        gl_FragColor.x = clipCoord.z / clipCoord.w;
     } else {
-        gl_FragColor = vec4(1.0);
+        mediump vec3 rayDir = normalize(rayEnd - rayStart);
+        const mediump float horizon = -0.01;
+        if (rayDir.y < horizon && rayStart.y > 0.0) {
+            // Floor
+            hitPosition.xz = mix(rayStart.xz, rayEnd.xz, rayStart.y / (rayStart.y - rayEnd.y));
+            hitPosition.y = 0.0;
+
+            // Hatch pattern
+            mediump float pattern = antialiasedHatch(abs(fract(hitPosition.x - 0.5) - 0.5) * 2.0, fwidth(hitPosition.x) * 4.0);
+            pattern = min(pattern, antialiasedHatch(abs(fract(hitPosition.z - 0.5) - 0.5) * 2.0, fwidth(hitPosition.z) * 4.0));
+            gl_FragColor.y = pattern;
+            gl_FragColor.z = -1.0;
+        } else {
+            // Sky
+            gl_FragColor = vec4(32768.0, rayDir);
+
+            // Skip Z value computation (since there is no actual ray intersection)
+            return;
+        }
     }
+
+    // Compute the Z value
+    highp vec4 clipCoord = u_ViewProjMat * vec4(hitPosition, 1.0);
+    gl_FragColor.x = clipCoord.z / clipCoord.w;
 }

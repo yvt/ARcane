@@ -265,7 +265,8 @@ class ShaderInstanceBuilderImpl implements ShaderInstanceBuilder
     {
         // Compile GLProgram
         const fsParts: string[] = [
-            '#extension GL_EXT_shader_texture_lod : enable\n\n'
+            '#extension GL_EXT_shader_texture_lod : enable\n\n',
+            '#extension GL_OES_standard_derivatives : enable\n\n',
         ];
         const vsParts: string[] = [];
 
