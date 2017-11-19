@@ -4,6 +4,15 @@ export interface EditorState
 {
     readonly displayMode: DisplayMode;
     readonly camera: CameraState;
+
+    /** Types of input devices that have been used. Used to generate an appropriate help message. */
+    readonly inputDevicesInUse: {
+        readonly touch: boolean;
+        readonly mouse: boolean;
+    };
+
+    /** The mouse pointer is on the viewport region. */
+    readonly viewportHot: boolean;
 }
 
 export interface CameraState
@@ -31,6 +40,11 @@ export function createEditorState(): EditorState
             eulerAngles: vec2.fromValues(Math.PI / 4, Math.PI / 5),
             distance: 200,
         },
+        inputDevicesInUse: {
+            touch: false,
+            mouse: false,
+        },
+        viewportHot: false,
     };
 }
 

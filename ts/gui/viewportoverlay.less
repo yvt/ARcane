@@ -27,6 +27,7 @@
             cursor: pointer;
             padding: 15px;
             color: rgba(255, 255, 255, 0.8);
+            text-shadow: 0px 0px 4px rgba(0, 0, 0, 0.2);
             font-size: 14px;
             font-weight: 600;
             text-transform: uppercase;
@@ -63,5 +64,25 @@
                 transform: scale(1.1);
             }
         }
+    }
+}
+
+.mouseHelp {
+    position: absolute;
+    bottom: 15px; right: 15px;
+    opacity: 0;
+    transition: 200ms opacity;
+    text-shadow: 0px 0px 4px rgba(0, 0, 0, 0.3);
+
+    &.visible {
+        opacity: 0.9;
+    }
+
+    td, th {
+        padding: 4px;
+    }
+    th {
+        text-align: left;
+        padding-right: 10px;
     }
 }

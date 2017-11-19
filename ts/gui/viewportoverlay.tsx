@@ -26,6 +26,25 @@ const DISPLAY_MODE_LIST = [{
     label: <span>AR</span>,
 }, ];
 
+const MOUSE_HELP = <tbody>
+    <tr>
+        <th>LMB</th>
+        <td>Use the active tool</td>
+    </tr>
+    <tr>
+        <th>RMB</th>
+        <td>Rotate</td>
+    </tr>
+    <tr>
+        <th>Shift + RMB</th>
+        <td>Pan</td>
+    </tr>
+    <tr>
+        <th>Mouse Wheel</th>
+        <td>Zoom</td>
+    </tr>
+</tbody>;
+
 export class ViewportOverlay extends React.Component<ViewportOverlayProps, State>
 {
     constructor(props: ViewportOverlayProps)
@@ -58,6 +77,13 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
                 value={editorState.displayMode}
                 onChange={this.handleDisplayModeChange}
                 />
+            {
+                !editorState.inputDevicesInUse.touch &&
+                <table className={classNames.mouseHelp +
+                   (editorState.viewportHot && editorState.inputDevicesInUse.mouse ?
+                       ' ' + classNames.visible :
+                       '')}>{MOUSE_HELP}</table>
+            }
         </div>;
     }
 }

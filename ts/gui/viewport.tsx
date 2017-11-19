@@ -48,6 +48,8 @@ export class ViewportPersistent implements IDisposable
     private smoothedCamera: CameraState | null;
     private stopwatch = new Stopwatch();
 
+    onMouseInputDeviceDetected: (() => void) | null = null;
+    onTouchInputDeviceDetected: (() => void) | null = null;
     onEditorStateUpdate: ((trans: (oldState: EditorState) => EditorState) => void) | null = null;
 
     constructor(logManager: LogManager)
@@ -59,6 +61,12 @@ export class ViewportPersistent implements IDisposable
         this.context = context;
 
         this.renderer = new Renderer(this.context, logManager, createWorkerClient);
+
+        this.canvas.addEventListener('mousemove', () => {
+            if (this.onMouseInputDeviceDetected) {
+                this.onMouseInputDeviceDetected();
+            }
+        });
 
         // Prevent right click (because we use it for camera manipulation)
         this.canvas.addEventListener('contextmenu', (e) => {
@@ -146,6 +154,8 @@ export class ViewportPersistent implements IDisposable
             state.lastX = e.clientX;
             state.lastY = e.clientY;
         };
+
+        // TODO: touch input
     }
 
     update(editorState: EditorState): void
@@ -241,12 +251,38 @@ export class Viewport extends React.Component<ViewportProps, State>
             throw new Error("ViewportPersistent is already mounted on some Viewport");
         }
         this.props.persistent.onEditorStateUpdate = this.handleEditorStateUpdateByPersistent;
+        this.props.persistent.onMouseInputDeviceDetected = () => {
+            if (!this.props.editorState.inputDevicesInUse.touch) {
+                // The presence of a mouse was detected
+                this.props.onChangeEditorState({
+                    ... this.props.editorState,
+                    inputDevicesInUse: {
+                        ... this.props.editorState.inputDevicesInUse,
+                        mouse: true,
+                    },
+                });
+            }
+        };
+        this.props.persistent.onTouchInputDeviceDetected = () => {
+            if (!this.props.editorState.inputDevicesInUse.touch) {
+                // The presence of a mouse was detected
+                this.props.onChangeEditorState({
+                    ... this.props.editorState,
+                    inputDevicesInUse: {
+                        ... this.props.editorState.inputDevicesInUse,
+                        touch: true,
+                    },
+                });
+            }
+        };
         this.props.persistent.mount();
     }
 
     componentWillUnmount()
     {
         this.props.persistent.onEditorStateUpdate = null;
+        this.props.persistent.onMouseInputDeviceDetected = null;
+        this.props.persistent.onTouchInputDeviceDetected = null;
     }
 
     componentDidUpdate(prevProps: ViewportProps, prevState: State): void
@@ -268,17 +304,35 @@ export class Viewport extends React.Component<ViewportProps, State>
         this.props.persistent.update(this.props.editorState);
     }
 
+    @bind
+    private handleMouseEnter(): void
+    {
+        this.props.onChangeEditorState({
+            ... this.props.editorState,
+            viewportHot: true,
+        });
+    }
+
+    @bind
+    private handleMouseLeave(): void
+    {
+        this.props.onChangeEditorState({
+            ... this.props.editorState,
+            viewportHot: false,
+        });
+    }
+
     render()
     {
         const {props, state} = this;
-        return [
+        return <div
+            onMouseEnter={this.handleMouseEnter}
+            onMouseLeave={this.handleMouseLeave}>
             <RequestAnimationFrame
-                key="raf"
                 onUpdate={this.update} />,
             <Port
-                key="port"
                 element={props.persistent.canvas}
                 className={classNames.port + (this.state.loaded ? ' ' + classNames.loaded : '')} />
-        ];
+        </div>;
     }
 }
