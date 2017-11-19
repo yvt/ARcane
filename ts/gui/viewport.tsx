@@ -48,12 +48,31 @@ export interface ViewportProps
     persistent: ViewportPersistent;
 }
 
-export class Viewport extends React.Component<ViewportProps, {}>
+interface State
+{
+    loaded: boolean;
+}
+
+export class Viewport extends React.Component<ViewportProps, State>
 {
     constructor(props: ViewportProps)
     {
         super(props);
+
+        this.state = {
+            loaded: false,
+        };
+
         this.update = this.update.bind(this);
+    }
+
+    componentDidMount()
+    {
+        setTimeout(() => {
+            this.setState({
+                loaded: true,
+            });
+        }, 400);
     }
 
     private update(): void
@@ -99,7 +118,7 @@ export class Viewport extends React.Component<ViewportProps, {}>
 
     render()
     {
-        const {props} = this;
+        const {props, state} = this;
         return [
             <RequestAnimationFrame
                 key="raf"
@@ -107,7 +126,7 @@ export class Viewport extends React.Component<ViewportProps, {}>
             <Port
                 key="port"
                 element={props.persistent.canvas}
-                className={classNames.port} />
+                className={classNames.port + (this.state.loaded ? ' ' + classNames.loaded : '')} />
         ];
     }
 }
