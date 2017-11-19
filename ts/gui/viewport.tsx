@@ -46,9 +46,6 @@ export class ViewportPersistent implements IDisposable
 export interface ViewportProps
 {
     persistent: ViewportPersistent;
-
-    className?: string;
-    style?: React.CSSProperties;
 }
 
 export class Viewport extends React.Component<ViewportProps, {}>
@@ -110,8 +107,7 @@ export class Viewport extends React.Component<ViewportProps, {}>
             <Port
                 key="port"
                 element={props.persistent.canvas}
-                className={classNames.port + ' ' + props.className}
-                style={props.style} />
+                className={classNames.port} />
         ];
     }
 }
