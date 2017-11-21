@@ -9,7 +9,7 @@
     "build-prod": "webpack --config webpack.prod.js",
     "watch": "webpack --progress --watch --config webpack.dev.js",
     "start": "webpack-dev-server --open --config webpack.dev.js",
-    "start-pub": "npm run start -- --useLocalIp --host 0.0.0.0"
+    "start-pub": "npm run start -- --useLocalIp --host 0.0.0.0 --https"
   },
   "author": "",
   "license": "UNLICENSED",
