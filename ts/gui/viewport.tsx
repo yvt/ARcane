@@ -17,6 +17,8 @@ import { MouseRouter } from './utils/mousecapture';
 
 import { EditorState, CameraState, DisplayMode, CameraStateInfo } from './editorstate';
 
+import { ARMain, ARState } from '../xr/main';
+
 const classNames = require('./viewport.less');
 
 // DEBUG: stats.js for easy frame rate monitoring
@@ -44,16 +46,26 @@ export class ViewportPersistent implements IDisposable
     readonly mouseRouter: MouseRouter<MouseGrabState>;
     readonly context: WebGLRenderingContext;
     readonly renderer: Renderer;
+    readonly ar: ARMain;
+
+    numRenderedFrames = 0;
 
     private smoothedCamera: CameraState | null;
     private stopwatch = new Stopwatch();
 
+    /**
+     * Notifies that the viewport must be re-rendered due to a change in the internal
+     * state of `ViewportPersistent` while `EditorState` is unmodified.
+     */
+    onNeedsUpdate: (() => void) | null = null;
     onMouseInputDeviceDetected: (() => void) | null = null;
     onTouchInputDeviceDetected: (() => void) | null = null;
     onEditorStateUpdate: ((trans: (oldState: EditorState) => EditorState) => void) | null = null;
 
     constructor(logManager: LogManager)
     {
+        this.ar = new ARMain(logManager);
+
         const context = this.canvas.getContext('webgl');
         if (!context) {
             throw new Error("failed to create a WebGL context.");
@@ -158,14 +170,26 @@ export class ViewportPersistent implements IDisposable
         // TODO: touch input
     }
 
-    update(editorState: EditorState): void
+    update(state: State, props: ViewportProps, render: boolean): void
     {
-        stats.begin();
-
+        const {editorState} = props;
         const {canvas, renderer} = this;
-        const rect = canvas.getBoundingClientRect();
-        canvas.width = Math.max(1, rect.width) | 0;
-        canvas.height = Math.max(1, rect.height) | 0;
+
+        // Use the parent element's bounding rect so it won't be affected by
+        // the scaling
+        const rect = canvas.parentElement!.getBoundingClientRect();
+        const newWidth = Math.max(1, rect.width) | 0;
+        const newHeight = Math.max(1, rect.height) | 0;
+        if (newWidth == canvas.width && newHeight == canvas.height) {
+            if (!render) {
+                return;
+            }
+        } else {
+            canvas.width = newWidth;
+            canvas.height = newHeight;
+        }
+
+        stats.begin();
 
         const {camera} = editorState;
 
@@ -203,6 +227,7 @@ export class ViewportPersistent implements IDisposable
 
         renderer.voxel.updateFrom(editorState.workspace.work.data);
         renderer.render();
+        this.numRenderedFrames += 1;
 
         stats.end();
     }
@@ -229,10 +254,20 @@ export interface ViewportProps
 interface State
 {
     loaded: boolean;
+    switchingMode: boolean;
+
+    arState: ARState;
+    arPlaying: boolean;
+
+    actualDisplayMode: DisplayMode;
 }
 
 export class Viewport extends React.Component<ViewportProps, State>
 {
+    private displayModeSwitchTimer: number | null;
+    private renderMeteringStopwatch = new Stopwatch();
+    private updateStopwatch = new Stopwatch();
+    private needsUpdate = false;
 
     constructor(props: ViewportProps)
     {
@@ -240,20 +275,21 @@ export class Viewport extends React.Component<ViewportProps, State>
 
         this.state = {
             loaded: false,
+            switchingMode: false,
+            arState: ARState.Inactive,
+            arPlaying: false,
+            actualDisplayMode: props.editorState.displayMode,
         };
     }
 
     componentDidMount()
     {
-        setTimeout(() => {
-            this.setState({
-                loaded: true,
-            });
-        }, 400);
         if (this.props.persistent.onEditorStateUpdate) {
             throw new Error("ViewportPersistent is already mounted on some Viewport");
         }
+        this.props.persistent.ar.onChangeState.connect(this.handleChangeARState);
         this.props.persistent.onEditorStateUpdate = this.handleEditorStateUpdateByPersistent;
+        this.props.persistent.onNeedsUpdate = this.handleNeedsUpdate;
         this.props.persistent.onMouseInputDeviceDetected = () => {
             if (!this.props.editorState.inputDevicesInUse.touch) {
                 // The presence of a mouse was detected
@@ -279,13 +315,21 @@ export class Viewport extends React.Component<ViewportProps, State>
             }
         };
         this.props.persistent.mount();
+        this.needsUpdate = true;
     }
 
     componentWillUnmount()
     {
+        this.props.persistent.ar.onChangeState.disconnect(this.handleChangeARState);
         this.props.persistent.onEditorStateUpdate = null;
         this.props.persistent.onMouseInputDeviceDetected = null;
         this.props.persistent.onTouchInputDeviceDetected = null;
+        this.props.persistent.onNeedsUpdate = null;
+
+        if (this.displayModeSwitchTimer != null) {
+            window.clearTimeout(this.displayModeSwitchTimer);
+            this.displayModeSwitchTimer = null;
+        }
     }
 
     componentDidUpdate(prevProps: ViewportProps, prevState: State): void
@@ -293,6 +337,48 @@ export class Viewport extends React.Component<ViewportProps, State>
         if (this.props.persistent !== prevProps.persistent) {
             throw new Error("Does not support replacing ViewportPersistent");
         }
+
+        // Trigger render
+        this.updateStopwatch.reset();
+
+        if (this.props.editorState.displayMode !== prevProps.editorState.displayMode) {
+            if (this.props.editorState.displayMode == DisplayMode.AR) {
+                this.props.persistent.ar.tryActivate();
+                if (this.props.persistent.ar.state == ARState.Active) {
+                    this.props.persistent.ar.play();
+                }
+            } else {
+                this.props.persistent.ar.stop();
+            }
+
+            // Delay the actual switch so we can have a time to fade out the viewport
+            const newMode = this.props.editorState.displayMode;
+            this.setState({ switchingMode: true });
+            if (this.displayModeSwitchTimer != null) {
+                window.clearTimeout(this.displayModeSwitchTimer);
+            }
+            this.displayModeSwitchTimer = window.setTimeout(() => {
+                this.setState({
+                    actualDisplayMode: newMode,
+                    switchingMode: false,
+                });
+            }, 200);
+        }
+    }
+
+    @bind
+    private handleNeedsUpdate(): void
+    {
+        this.needsUpdate = true;
+    }
+
+    @bind
+    private handleChangeARState(): void
+    {
+        this.setState({
+            arState: this.props.persistent.ar.state,
+            arPlaying: this.props.persistent.ar.isPlaying,
+        });
     }
 
     @bind
@@ -304,7 +390,36 @@ export class Viewport extends React.Component<ViewportProps, State>
     @bind
     private update(): void
     {
-        this.props.persistent.update(this.props.editorState);
+        let needsToUpdate = this.needsUpdate;
+        this.needsUpdate = false;
+
+        if (!this.state.switchingMode) {
+            if (this.state.actualDisplayMode == DisplayMode.Normal) {
+                // Stop updating on inactivity to reduce the power consumption
+                needsToUpdate = this.updateStopwatch.elapsed < 5000;
+            } else if (this.state.actualDisplayMode == DisplayMode.AR) {
+                // Meter the rendering by the camera's frame rate.
+                // It is impossible to know when exactly we get a new frame from
+                // the camera since no API is provided for that purpose.
+                const frameInterval = 1000 / this.props.persistent.ar.frameRate!;
+                needsToUpdate = this.renderMeteringStopwatch.elapsed >= frameInterval - 0.01;
+            }
+        }
+
+        if (!this.state.loaded) {
+            // Warm up shaders
+            needsToUpdate = true;
+        }
+
+        this.props.persistent.update(this.state, this.props, needsToUpdate);
+        if (needsToUpdate) {
+            this.renderMeteringStopwatch.reset();
+        }
+
+        if (this.props.persistent.numRenderedFrames > 10 && !this.state.loaded) {
+            // All shaders should be ready now
+            this.setState({ loaded: true });
+        }
     }
 
     @bind
@@ -328,14 +443,32 @@ export class Viewport extends React.Component<ViewportProps, State>
     render()
     {
         const {props, state} = this;
+        const {ar} = props.persistent;
+
+        const canvasVisible = this.state.loaded &&
+            state.actualDisplayMode == DisplayMode.Normal ||
+            state.arState == ARState.Active;
+
         return <div
+            className={classNames.wrapper}
             onMouseEnter={this.handleMouseEnter}
             onMouseLeave={this.handleMouseLeave}>
             <RequestAnimationFrame
                 onUpdate={this.update} />,
             <Port
                 element={props.persistent.canvas}
-                className={classNames.port + (this.state.loaded ? ' ' + classNames.loaded : '')} />
+                className={classNames.port +
+                       (canvasVisible ? ' ' + classNames.loaded : '') +
+                       (this.state.switchingMode && canvasVisible ? ' ' + classNames.fadeOut : '')} />
+            {
+                state.actualDisplayMode == DisplayMode.AR &&
+                state.arState == ARState.Error &&
+                <div className={classNames.arError}>
+                    <p>
+                        Could not initialize the camera input.
+                    </p>
+                </div>
+            }
         </div>;
     }
 }

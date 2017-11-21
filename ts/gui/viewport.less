@@ -1,16 +1,34 @@
-.port canvas {
+.wrapper {
     position: absolute;
     left: 0; top: 0;
     width: 100%; height: 100%;
+    background: black;
 }
 
-.port:not(.loaded) canvas {
-    opacity: 0;
-}
+.port {
+    position: absolute;
+    left: 0; top: 0;
+    width: 100%; height: 100%;
 
-.port.loaded canvas {
-    animation: 800ms;
-    animation-name: canvas-initial-load;
+    canvas {
+        position: absolute;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+    }
+
+    &:not(.loaded) canvas {
+        opacity: 0;
+    }
+
+    &.loaded:not(.fadeOut) canvas {
+        animation: 800ms;
+        animation-name: canvas-initial-load;
+    }
+
+    &.fadeOut canvas {
+        animation: 200ms both;
+        animation-name: canvas-fade-out;
+    }
 }
 
 @keyframes canvas-initial-load {
@@ -24,6 +42,18 @@
         filter: blur(0px);
         transform: none;
     }
+}
+
+@keyframes canvas-fade-out {
+    0% { opacity: 1; } 100% { opacity: 0; }
+}
+
+.arError {
+    position: absolute;
+    left: 0; top: 40%;
+    width: 100%;
+    color: gray;
+    text-align: center;
 }
 
 // debug
