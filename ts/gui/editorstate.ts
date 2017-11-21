@@ -1,4 +1,6 @@
 import { vec2, vec3, mat4 } from 'gl-matrix';
+import { Workspace } from '../model/workspace';
+import { createWork, mapIndex } from '../model/work';
 
 export interface EditorState
 {
@@ -13,6 +15,8 @@ export interface EditorState
 
     /** The mouse pointer is on the viewport region. */
     readonly viewportHot: boolean;
+
+    readonly workspace: Workspace;
 }
 
 export interface CameraState
@@ -33,6 +37,30 @@ export enum DisplayMode
 
 export function createEditorState(): EditorState
 {
+    // DEBUG: create a pre-initialized work
+    let work = createWork();
+    work = {
+        ... work,
+        data: work.data.mutate(context => {
+            const dens = context.data.density;
+
+            for (let z = 0; z < 256; ++z) {
+                for (let y = 0; y < 256; ++y) {
+                    for (let x = 0; x < 256; ++x) {
+                        let v = Math.sin(x / 20) + Math.sin(y / 20) + Math.cos(z / 20)
+                            + Math.sin(x / 7) * 0.5 + Math.sin(y / 3) * 0.1 + Math.sin(z / 55) * 0.5;
+                        v *= Math.max(0, 128 * 128 - Math.pow(x - 128, 2) - Math.pow(y - 128, 2) - Math.pow(z - 128, 2)) / 128 / 128;
+                        v += (v - 0.5) * 4;
+                        v = Math.max(Math.min(v * 255 | 0, 255), 0);
+
+                        dens[mapIndex(x, y, z)] = v;
+                    }
+                }
+            }
+
+            context.markDirty([0, 0, 0], [256, 256, 256]);
+        }),
+    };
     return {
         displayMode: DisplayMode.Normal,
         camera: {
@@ -45,6 +73,7 @@ export function createEditorState(): EditorState
             mouse: false,
         },
         viewportHot: false,
+        workspace: { work },
     };
 }
 

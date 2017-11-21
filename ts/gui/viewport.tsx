@@ -160,6 +160,8 @@ export class ViewportPersistent implements IDisposable
 
     update(editorState: EditorState): void
     {
+        stats.begin();
+
         const {canvas, renderer} = this;
         const rect = canvas.getBoundingClientRect();
         canvas.width = Math.max(1, rect.width) | 0;
@@ -199,8 +201,9 @@ export class ViewportPersistent implements IDisposable
             renderer.scene.projectionMatrix,
         );
 
-        stats.begin();
+        renderer.voxel.updateFrom(editorState.workspace.work.data);
         renderer.render();
+
         stats.end();
     }
 

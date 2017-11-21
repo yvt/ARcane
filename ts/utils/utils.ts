@@ -37,3 +37,21 @@ export function filterMap<T, S>(array: ArrayLike<T>, cb: (e: T, i: number) => S 
     }
     return result;
 }
+
+export function assert(cond: boolean, message?: string): void
+{
+    if (!cond) {
+        if (message != null) {
+            throw new Error(`Assertion failed.: ${message}`);
+        } else {
+            throw new Error("Assertion failed.");
+        }
+    }
+}
+
+export function assertEq(got: any, expected: any): void
+{
+    if (got !== expected) {
+        throw new Error(`Expected ${expected}, got ${got}`);
+    }
+}
