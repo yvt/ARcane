@@ -1097,6 +1097,8 @@
 			}
 		};
 
+		video.playsInline = true;
+
 		var readyToPlay = false;
 		var eventNames = [
 			'touchstart', 'touchend', 'touchmove', 'touchcancel',
@@ -1268,7 +1270,7 @@
 				}
 				var arController = new ARController(w, h, arCameraParam);
 				arController.image = video;
-				if (video.videoWidth < video.videoHeight) {
+				if (video.videoWidth < video.videoHeight && false) {
 					arController.orientation = 'portrait';
 					arController.videoWidth = video.videoHeight;
 					arController.videoHeight = video.videoWidth;

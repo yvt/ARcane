@@ -1,24 +1,39 @@
 // exports
 #pragma global v_TexCoord
+#pragma global v_CameraTexCoord
 
 // imports
+#pragma global ENABLE_AR
 #pragma global g1Texture
 #pragma global ssaoTexture
+#pragma global cameraTexture
 #pragma global fetchVoxelData
 
 varying highp vec2 v_TexCoord;
 
+#if ENABLE_AR
+varying highp vec2 v_CameraTexCoord;
+#endif
+
 void main() {
     mediump vec3 scene_color = vec3(0.1, 0.12, 0.2);
     mediump vec3 floor_color = (scene_color + 0.05) * 0.8;
+
+#if ENABLE_AR
+    mediump vec3 camera_image = texture2D(cameraTexture, v_CameraTexCoord).xyz;
+#endif
 
     // Fetch GBuffer 1
     mediump vec4 g1 = texture2D(g1Texture, v_TexCoord);
 
     if (g1.x == 32768.0) {
         // Render the background (gradient)
+#if ENABLE_AR
+        gl_FragColor = vec4(camera_image, 1.0);
+#else
         mediump vec3 color = scene_color * (g1.z * 0.5 + 0.5);
         gl_FragColor = vec4(sqrt(color), 1.0);
+#endif
         return;
     }
 
@@ -27,8 +42,12 @@ void main() {
 
     if (g1.z == -1.0) {
         // Floor
+#if ENABLE_AR
+        gl_FragColor = vec4(camera_image * sqrt(ssao), 1.0);
+#else
         mediump vec3 color = floor_color * (ssao * mix(0.2, 0.5, g1.y));
         gl_FragColor = vec4(sqrt(color), 1.0);
+#endif
         return;
     }
 

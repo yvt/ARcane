@@ -225,6 +225,16 @@ export class ViewportPersistent implements IDisposable
             renderer.scene.projectionMatrix,
         );
 
+        // Do AR thingy
+        if (state.actualDisplayMode === DisplayMode.AR && this.ar.activeState) {
+            const activeState = this.ar.activeState;
+            activeState.ctrler.process();
+            renderer.scene.enableAR = true;
+            renderer.cameraImage.updateWith(activeState.ctrler.canvas);
+        } else {
+            renderer.scene.enableAR = false;
+        }
+
         renderer.voxel.updateFrom(editorState.workspace.work.data);
         renderer.render();
         this.numRenderedFrames += 1;

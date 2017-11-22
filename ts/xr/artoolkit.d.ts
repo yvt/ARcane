@@ -68,6 +68,11 @@ export interface NumberArray
 export interface ARController
 {
     image: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement;
+    readonly canvas: HTMLCanvasElement;
+    readonly ctx: Canvas2DContextAttributes;
+    readonly videoWidth: number;
+    readonly videoHeight: number;
+    orientation: 'landscape' | 'portrait';
 
     /**
      *  Destroys the ARController instance and frees all associated resources.

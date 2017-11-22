@@ -1,4 +1,4 @@
-import { mat4 } from 'gl-matrix';
+import { vec2, mat4 } from 'gl-matrix';
 
 import { downcast } from '../../utils/utils';
 
@@ -13,6 +13,7 @@ import { GLContext, GLStateFlags, GLDrawBufferFlags } from '../globjs/context';
 import { QuadRenderer } from '../quad';
 import { Scene } from '../model';
 import { VoxelData } from '../voxeldata';
+import { CameraImage } from '../cameraimage';
 
 import {
     ShaderModule, ShaderBuilder, ShaderModuleInstance,
@@ -39,18 +40,26 @@ export interface GlobalLightingContext
     readonly quad: QuadRenderer;
     readonly scene: Scene;
     readonly voxel: VoxelData;
+    readonly cameraImage: CameraImage;
+}
+
+const enum ShaderFlags
+{
+    ENABLE_AR = 1
 }
 
 export class GlobalLightingPass
 {
-    shaderInstance: TypedShaderInstance<GlobalLightingShaderInstance, GlobalLightingShaderParam>;
+    shaderInstance: TypedShaderInstance<GlobalLightingShaderInstance, GlobalLightingShaderParam>[] = [];
 
     constructor(public readonly context: GlobalLightingContext)
     {
-        this.shaderInstance = buildShaderTyped
-            <GlobalLightingShaderModule, GlobalLightingShaderInstance, GlobalLightingShaderParam>
-            (builder => new GlobalLightingShaderModule(builder))
-            .compile(context.context);
+        for (let i = 0; i < 2; ++i) {
+            this.shaderInstance.push(buildShaderTyped
+                <GlobalLightingShaderModule, GlobalLightingShaderInstance, GlobalLightingShaderParam>
+                (builder => new GlobalLightingShaderModule(builder, i))
+                .compile(context.context));
+        }
     }
 
     dispose(): void
@@ -76,6 +85,7 @@ export class GlobalLightingPass
                 downcast(TextureRenderBuffer, cfg.outputs['lit']),
                 downcast(TextureRenderBuffer, cfg.inputs['g1']),
                 downcast(TextureRenderBuffer, cfg.inputs['ssao']),
+                this.context.scene.enableAR,
             ),
         });
 
@@ -87,15 +97,23 @@ class GlobalLightingOperator implements RenderOperator
 {
     private shaderParams: TypedShaderParameter<GlobalLightingShaderParam>;
     private framebuffer: GLFramebuffer;
+    private shaderIndex: number;
 
     constructor(
         private pass: GlobalLightingPass,
         private outputLit: TextureRenderBuffer,
         private g1: TextureRenderBuffer,
         private ssao: TextureRenderBuffer,
+        private enableAR: boolean,
     )
     {
-        this.shaderParams = pass.shaderInstance.createParameter();
+        let index = 0;
+        if (enableAR) {
+            index |= ShaderFlags.ENABLE_AR;
+        }
+        this.shaderIndex = index;
+
+        this.shaderParams = pass.shaderInstance[index].createParameter();
 
         this.framebuffer = GLFramebuffer.createFramebuffer(
             pass.context.context,
@@ -116,7 +134,7 @@ class GlobalLightingOperator implements RenderOperator
     perform(): void
     {
         const {pass} = this;
-        const {context, quad, scene, voxel} = pass.context;
+        const {context, quad, scene, voxel, cameraImage} = pass.context;
         const {gl} = context;
 
         const params = this.shaderParams.root;
@@ -126,12 +144,17 @@ class GlobalLightingOperator implements RenderOperator
         params.g1Texture.texture = this.g1.texture;
         params.ssaoTexture.texture = this.ssao.texture;
 
+        if (this.enableAR) {
+            params.cameraTexture!.texture = cameraImage.texture;
+            params.cameraTextureMat = scene.cameraTextureMatrix;
+        }
+
         context.framebuffer = this.framebuffer;
         context.states = GLStateFlags.Default;
         context.drawBuffers = GLDrawBufferFlags.Color0 | GLDrawBufferFlags.ColorRGBA;
         gl.viewport(0, 0, this.outputLit.width, this.outputLit.height);
 
-        const {shaderInstance} = pass;
+        const shaderInstance = pass.shaderInstance[this.shaderIndex];
         gl.useProgram(shaderInstance.program.handle);
         shaderInstance.apply(this.shaderParams);
 
@@ -147,43 +170,58 @@ interface GlobalLightingShaderParam
 {
     viewProjMat: mat4;
     invViewProjMat: mat4;
-    voxelData: VoxelDataShaderParam;
-    g1Texture: TextureShaderParameter;
-    ssaoTexture: TextureShaderParameter;
+    cameraTextureMat: mat4;
+    readonly voxelData: VoxelDataShaderParam;
+    readonly g1Texture: TextureShaderParameter;
+    readonly ssaoTexture: TextureShaderParameter;
+    readonly cameraTexture: TextureShaderParameter | null;
 }
 
 class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstance, GlobalLightingShaderParam>
 {
     private readonly fragChunk = new PieShaderChunk<{
+        ENABLE_AR: string;
         v_TexCoord: string;
         g1Texture: string;
         ssaoTexture: string;
+        cameraTexture: string;
         fetchVoxelData: string;
     }>(globalLightingFragModule);
     private readonly vertChunk = new PieShaderChunk<{
+        ENABLE_AR: string;
         a_Position: string;
         v_TexCoord: string;
+        u_CameraTexMatrix: string;
     }>(globalLightingVertModule);
 
     readonly a_Position = this.vertChunk.bindings.a_Position;
+    readonly u_CameraTexMatrix = this.vertChunk.bindings.u_CameraTexMatrix;
 
     readonly g1Texture: Texture2DShaderObject;
     readonly ssaoTexture: Texture2DShaderObject;
+    readonly cameraTexture: Texture2DShaderObject | null = null;
     readonly voxelData: VoxelDataShaderObject;
 
-    constructor(builder: ShaderBuilder)
+    constructor(builder: ShaderBuilder, flags: ShaderFlags)
     {
         super(builder);
 
         this.g1Texture = new Texture2DShaderObject(builder, 'mediump');
         this.ssaoTexture = new Texture2DShaderObject(builder, 'mediump');
+        if (flags & ShaderFlags.ENABLE_AR) {
+            this.cameraTexture = new Texture2DShaderObject(builder, 'mediump');
+        }
         this.voxelData = new VoxelDataShaderObject(builder);
 
         this.fragChunk.bind({
             // child object
             g1Texture: this.g1Texture.u_Texture,
             ssaoTexture: this.ssaoTexture.u_Texture,
+            cameraTexture: (this.cameraTexture && this.cameraTexture.u_Texture) || '',
             fetchVoxelData: this.voxelData.fetchVoxelData,
+
+            // static parameters
+            ENABLE_AR: String(flags & ShaderFlags.ENABLE_AR),
         });
         this.vertChunk.inherit(this.fragChunk);
 
@@ -206,7 +244,10 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
 
     private readonly g1Texture: Texture2DShaderInstance;
     private readonly ssaoTexture: Texture2DShaderInstance;
+    private readonly cameraTexture: Texture2DShaderInstance | null;
     private readonly voxelData: VoxelDataShaderInstance;
+
+    private readonly u_CameraTexMatrix: WebGLUniformLocation | null;
 
     constructor(builder: ShaderInstanceBuilder, parent: GlobalLightingShaderModule)
     {
@@ -214,9 +255,11 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
 
         const {gl} = builder.context;
         this.a_Position = gl.getAttribLocation(builder.program.handle, parent.a_Position);
+        this.u_CameraTexMatrix = gl.getUniformLocation(builder.program.handle, parent.u_CameraTexMatrix);
 
         this.g1Texture = builder.getUnwrap(parent.g1Texture);
         this.ssaoTexture = builder.getUnwrap(parent.ssaoTexture);
+        this.cameraTexture = parent.cameraTexture && builder.getUnwrap(parent.cameraTexture);
         this.voxelData = builder.getUnwrap(parent.voxelData);
     }
 
@@ -225,15 +268,20 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
         return {
             viewProjMat: mat4.create(),
             invViewProjMat: mat4.create(),
+            cameraTextureMat: mat4.create(),
             voxelData: builder.getUnwrap(this.voxelData),
             g1Texture: builder.getUnwrap(this.g1Texture),
             ssaoTexture: builder.getUnwrap(this.ssaoTexture),
+            cameraTexture: this.cameraTexture && builder.getUnwrap(this.cameraTexture),
         };
     }
 
     apply(param: GlobalLightingShaderParam)
     {
         const {gl} = this.context;
+        if (this.u_CameraTexMatrix) {
+            gl.uniformMatrix4fv(this.u_CameraTexMatrix, false, param.cameraTextureMat);
+        }
     }
 }
 

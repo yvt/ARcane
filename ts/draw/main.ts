@@ -18,6 +18,7 @@ import { SsaoPass } from './passes/ssao/toplevel';
 
 import { Scene } from './model';
 import { VoxelData, VoxelDataManager } from './voxeldata';
+import { CameraImage } from './cameraimage';
 
 export class Renderer
 {
@@ -34,12 +35,14 @@ export class Renderer
     private readonly globalLightingPass: GlobalLightingPass;
     private readonly visualizeColorBufferPass: VisualizeColorBufferPass;
 
-    private lastWidth: number = 0;
-    private lastHeight: number = 0;
+    private lastWidth = 0;
+    private lastHeight = 0;
+    private lastEnableAR = false;
 
     readonly scene = new Scene();
     readonly voxelManager: VoxelDataManager;
     readonly voxel: VoxelData;
+    readonly cameraImage: CameraImage;
 
     private worker: WorkerClient;
 
@@ -60,6 +63,7 @@ export class Renderer
 
         this.voxelManager = new VoxelDataManager(this);
         this.voxel = this.voxelManager.createVoxelData();
+        this.cameraImage = new CameraImage(this.context);
 
         this.profiler = new Profiler(this.context.ext.EXT_disjoint_timer_query, log.getLogger(TOPICS.PROFILER));
         this.pipeline = new RenderPipeline(log.getLogger(TOPICS.SCHEDULER), this.profiler, this.context);
@@ -87,6 +91,7 @@ export class Renderer
         this.visualizeColorBufferPass.dispose();
 
         this.voxel.dispose();
+        this.cameraImage.dispose();
 
         this.pipeline.releaseAll();
         this.profiler.dispose();
@@ -120,9 +125,14 @@ export class Renderer
     {
         const {gl} = this.context;
 
-        if (gl.drawingBufferWidth != this.lastWidth || gl.drawingBufferHeight != this.lastHeight) {
+        if (
+            gl.drawingBufferWidth != this.lastWidth ||
+            gl.drawingBufferHeight != this.lastHeight ||
+            this.scene.enableAR != this.lastEnableAR
+        ) {
             this.lastWidth = gl.drawingBufferWidth;
             this.lastHeight = gl.drawingBufferHeight;
+            this.lastEnableAR = this.scene.enableAR;
             this.compilePipeline();
         }
 

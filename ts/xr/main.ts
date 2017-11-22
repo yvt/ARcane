@@ -39,11 +39,15 @@ export class ARMain
     get isPlaying(): boolean
     {
         if (this.activeState) {
-            const video = downcast(HTMLVideoElement, this.activeState.ctrler.image);
-            return !video.paused;
+            return !(this.video!).paused;
         } else {
             return false;
         }
+    }
+
+    get video(): HTMLVideoElement | null
+    {
+        return this.activeState && downcast(HTMLVideoElement, this.activeState.ctrler.image);
     }
 
     tryActivate(): void
@@ -81,8 +85,7 @@ export class ARMain
     play(): void
     {
         if (this.activeState) {
-            const video = downcast(HTMLVideoElement, this.activeState.ctrler.image);
-            video.play();
+            this.video!.play();
         } else {
             throw new Error("No ARController");
         }
@@ -91,8 +94,7 @@ export class ARMain
     stop(): void
     {
         if (this.activeState) {
-            const video = downcast(HTMLVideoElement, this.activeState.ctrler.image);
-            video.pause();
+            this.video!.pause();
         }
     }
 }
