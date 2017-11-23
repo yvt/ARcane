@@ -293,6 +293,12 @@ export class ViewportPersistent implements IDisposable
                 mat4.identity(scene.viewMatrix);
                 mat4.identity(scene.projectionMatrix);
             }
+
+            if (rect.width * devicePixelRatio > newWidth * 1.5) {
+                canvas.style.filter = `blur(${rect.width / video.videoWidth}px)`;
+            } else {
+                canvas.style.filter = '';
+            }
         } else {
             scene.enableAR = false;
             scene.skipScene = false;
@@ -313,6 +319,8 @@ export class ViewportPersistent implements IDisposable
                 ),
                 scene.projectionMatrix,
             );
+
+            canvas.style.filter = '';
         }
 
         renderer.voxel.updateFrom(editorState.workspace.work.data);
