@@ -228,9 +228,8 @@ export class ViewportPersistent implements IDisposable
         // Do AR thingy
         if (state.actualDisplayMode === DisplayMode.AR && this.ar.activeState) {
             const activeState = this.ar.activeState;
-            activeState.ctrler.process();
-            renderer.scene.enableAR = true;
             renderer.cameraImage.updateWith(activeState.ctrler.canvas);
+            renderer.scene.enableAR = true;
         } else {
             renderer.scene.enableAR = false;
         }
@@ -275,7 +274,6 @@ interface State
 export class Viewport extends React.Component<ViewportProps, State>
 {
     private displayModeSwitchTimer: number | null;
-    private renderMeteringStopwatch = new Stopwatch();
     private updateStopwatch = new Stopwatch();
     private needsUpdate = false;
 
@@ -408,11 +406,8 @@ export class Viewport extends React.Component<ViewportProps, State>
                 // Stop updating on inactivity to reduce the power consumption
                 needsToUpdate = this.updateStopwatch.elapsed < 5000;
             } else if (this.state.actualDisplayMode == DisplayMode.AR) {
-                // Meter the rendering by the camera's frame rate.
-                // It is impossible to know when exactly we get a new frame from
-                // the camera since no API is provided for that purpose.
-                const frameInterval = 1000 / this.props.persistent.ar.frameRate!;
-                needsToUpdate = this.renderMeteringStopwatch.elapsed >= frameInterval - 0.01;
+                // Poll `ARMain` and re-render only if we get a new data
+                needsToUpdate = this.props.persistent.ar.update();
             }
         }
 
@@ -422,9 +417,6 @@ export class Viewport extends React.Component<ViewportProps, State>
         }
 
         this.props.persistent.update(this.state, this.props, needsToUpdate);
-        if (needsToUpdate) {
-            this.renderMeteringStopwatch.reset();
-        }
 
         if (this.props.persistent.numRenderedFrames > 10 && !this.state.loaded) {
             // All shaders should be ready now
