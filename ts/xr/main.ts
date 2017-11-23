@@ -55,31 +55,38 @@ export class ARMain
     tryActivate(): void
     {
         if (this.state == ARState.Inactive) {
-            this.state = ARState.Activating;
-            ARController.getUserMediaARController({
-                onSuccess: (ctrler, param, stream) => {
-                    const videoTrack = stream.getVideoTracks()[0];
-                    this.frameRate = videoTrack.getSettings().frameRate!;
-                    this.activeState = {
-                        ctrler,
-                        cameraParam: param,
-                        mediaStream: stream,
-                    };
-                    this.state = ARState.Active;
-                    this.log.log(`ARController created`);
-                    this.onChangeState.invoke(this, void 0);
-                },
-                onError: (error: any) => {
-                    this.state = ARState.Error;
-                    this.log.error(`getUserMediaARController failed: ${error}`);
-                    this.onChangeState.invoke(this, void 0);
-                },
-                // `loadCamera` accepts raw data too! (but it must have the `\n`
-                // character)
-                cameraParam: cameraParamData,
-                facingMode: 'environment',
-                maxARVideoSize: 320,
-            });
+            this.activate();
+        }
+    }
+
+    private async activate(): Promise<void>
+    {
+        this.state = ARState.Activating;
+        this.onChangeState.invoke(this, void 0);
+
+        try {
+            const {stream, arController, arCameraParam} =
+                await ARController.getUserMediaARControllerPromise({
+                    // `loadCamera` accepts raw data too! (but it must have the `\n`
+                    // character)
+                    cameraParam: cameraParamData,
+                    facingMode: 'environment',
+                    maxARVideoSize: 320,
+                });
+
+            const videoTrack = stream.getVideoTracks()[0];
+            this.frameRate = videoTrack.getSettings().frameRate!;
+            this.activeState = {
+                ctrler: arController,
+                cameraParam: arCameraParam,
+                mediaStream: stream,
+            };
+            this.state = ARState.Active;
+            this.log.log(`ARController created`);
+            this.onChangeState.invoke(this, void 0);
+        } catch (e) {
+            this.state = ARState.Error;
+            this.log.error(`getUserMediaARController failed: ${e}`);
             this.onChangeState.invoke(this, void 0);
         }
     }

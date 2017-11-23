@@ -749,6 +749,25 @@ export interface ARControllerConstructor
 
         facingMode?: VideoFacingModeEnum | { exact: VideoFacingModeEnum };
     }): HTMLVideoElement;
+
+    /** Promise version of `getUserMediaARController`. */
+    getUserMediaARControllerPromise(configuration: {
+        /** URL to camera parameters definition file. */
+        cameraParam: string;
+
+        /** Maximum max(width, height) for the AR processing canvas. */
+        maxARVideoSize?: number;
+
+        width?: number | {min: number, ideal: number, max: number};
+        height?: number | {min: number, ideal: number, max: number};
+
+        facingMode?: VideoFacingModeEnum | { exact: VideoFacingModeEnum };
+    }): Promise<{
+        arController: ARController;
+        arCameraParam: ARCameraParam;
+        stream: MediaStream;
+        video: HTMLVideoElement;
+    }>;
 }
 
 /**

@@ -1289,6 +1289,25 @@
 		return video;
 	};
 
+	ARController.getUserMediaARControllerPromise = function (configuration) {
+		var self = this;
+		return new Promise(function (resolve, reject) {
+			var newConf = Object.create(configuration);
+			var video;
+			newConf.onSuccess = function (arController, arCameraParam, stream) {
+				resolve({
+					arController: arController,
+					arCameraParam: arCameraParam,
+					stream: stream,
+					video: video,
+				});
+			};
+			newConf.onError = function (error) {
+				reject(error);
+			};
+			video = self.getUserMediaARController(newConf);
+		});
+	};
 
 	/**
 		ARCameraParam is used for loading AR camera parameters for use with ARController.
