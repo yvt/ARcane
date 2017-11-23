@@ -13,6 +13,7 @@ import { Blitter } from './subpasses/blit';
 import { PresentPass } from './passes/present';
 import { RaytracePass } from './passes/raytrace';
 import { GlobalLightingPass } from './passes/globallighting';
+import { GizmoPass } from './passes/gizmo';
 import { VisualizeColorBufferPass } from './passes/visualize';
 import { SsaoPass } from './passes/ssao/toplevel';
 
@@ -33,6 +34,7 @@ export class Renderer
     private readonly raytracePass: RaytracePass;
     private readonly ssaoPass: SsaoPass;
     private readonly globalLightingPass: GlobalLightingPass;
+    private readonly gizmoPass: GizmoPass;
     private readonly visualizeColorBufferPass: VisualizeColorBufferPass;
 
     private lastWidth = 0;
@@ -74,6 +76,7 @@ export class Renderer
         this.raytracePass = new RaytracePass(this);
         this.ssaoPass = new SsaoPass(this);
         this.globalLightingPass = new GlobalLightingPass(this);
+        this.gizmoPass = new GizmoPass(this);
         this.visualizeColorBufferPass = new VisualizeColorBufferPass(this);
 
         this.worker = workerFactory();
@@ -88,6 +91,7 @@ export class Renderer
         this.raytracePass.dispose();
         this.ssaoPass.dispose();
         this.globalLightingPass.dispose();
+        this.gizmoPass.dispose();
         this.visualizeColorBufferPass.dispose();
 
         this.voxel.dispose();
@@ -111,7 +115,9 @@ export class Renderer
 
         const lit = this.globalLightingPass.setup(g1, ssao, ops);
 
-        const output = this.visualizeColorBufferPass.setup(lit, ops);
+        const litWithGizmos = this.gizmoPass.setup(g1, lit, ops);
+
+        const output = this.visualizeColorBufferPass.setup(litWithGizmos, ops);
 
         const logger = this.log.getLogger(TOPICS.SCHEDULER);
         if (logger.isEnabled) {
