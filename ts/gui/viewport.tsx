@@ -208,30 +208,115 @@ export class ViewportPersistent implements IDisposable
             this.smoothedCamera = camera;
         }
 
-        renderer.scene.viewMatrix = new CameraStateInfo(this.smoothedCamera).viewMatrix;
-        mat4.perspective(renderer.scene.projectionMatrix, 1.0, canvas.width / canvas.height, 1, 500);
-
-        // Convert Z from (-1 -> 1) to (32768 -> 0) (for more precision)
-        mat4.multiply(
-            renderer.scene.projectionMatrix,
-            mat4.scale(
-                mat4.create(),
-                mat4.fromTranslation(
-                    mat4.create(),
-                    [0, 0, 16384]
-                ),
-                [1, 1, -16384]
-            ),
-            renderer.scene.projectionMatrix,
-        );
-
         // Do AR thingy
+        const scene = renderer.scene;
         if (state.actualDisplayMode === DisplayMode.AR && this.ar.activeState) {
+            scene.enableAR = true;
+
             const activeState = this.ar.activeState;
-            renderer.cameraImage.updateWith(activeState.ctrler.canvas);
-            renderer.scene.enableAR = true;
+            const image = activeState.lastProcessedImage;
+            const video = activeState.video;
+            renderer.cameraImage.updateWith(image);
+
+            // `video.{videoWidth, videoHeight}` are dependent on the device orientation
+            const scale = Math.min(video.videoWidth / newWidth, video.videoHeight / newHeight);
+            const scaleX = scale / (video.videoWidth / newWidth);
+            const scaleY = scale / (video.videoHeight / newHeight);
+
+            mat4.scale(
+                scene.cameraTextureMatrix,
+                mat4.fromTranslation(
+                    scene.cameraTextureMatrix,
+                    [0.5, 0.5, 0]
+                ),
+                [0.5 * scaleX, -0.5 * scaleY, 0]
+            );
+
+            if (activeState.markerFound) {
+                scene.skipScene = false;
+
+                mat4.copy(scene.projectionMatrix, activeState.projectionMatrix);
+
+                scene.projectionMatrix[0] /= scaleX;
+                scene.projectionMatrix[5] /= scaleY;
+
+                // jsartoolkit's near/far plane default to bizarre values, causing
+                // unacceptable amount of numerical errors in FP32 operations.
+                // (And there is no way to change it)
+                // Substitute them with safe values until we find the right ones.
+                const dummyFar = 100;
+                const dummyNear = 0.01;
+                scene.projectionMatrix[10] = (dummyNear + dummyFar) / (dummyNear - dummyFar);
+                scene.projectionMatrix[11] = -1;
+                scene.projectionMatrix[14] = (2 * dummyNear * dummyFar) / (dummyNear - dummyFar);
+
+                mat4.scale(scene.viewMatrix, activeState.markerMatrix, [1, 1, 1]);
+                mat4.translate(scene.viewMatrix, scene.viewMatrix, [-128, -128, 0]);
+
+                for (let i = 0; i < 4; ++i) {
+                    scene.viewMatrix[i * 4 + 2] *= -1;
+                }
+
+                const mvp = mat4.create();
+                const v = vec4.create();
+                mat4.multiply(mvp, scene.projectionMatrix, scene.viewMatrix);
+
+                // Scale the projection matrix so entire the scene fits within the
+                // clip space Z range [0, 32768]
+                let origMaxZ = -Infinity;
+                for (let i = 0; i < 8; ++i) {
+                    vec4.set(v, (i & 1) ? 256 : 0, (i & 2) ? 256 : 0, (i & 4) ? 256 : 0, 1);
+                    vec4.transformMat4(v, v, mvp);
+                    if (v[3] > 0) {
+                        const z = v[2] / v[3];
+                        origMaxZ = Math.max(origMaxZ, z);
+                    }
+                }
+
+                vec4.set(v, 0, 0, -dummyNear, 1);
+                vec4.transformMat4(v, v, scene.projectionMatrix);
+                const origMinZ = v[2] / v[3];
+
+                // nearest/furthest points are mapped to 32768 and 0, respectively
+                const factor = 32768 / (origMinZ - origMaxZ);
+                const offset = -origMaxZ * factor;
+                const {projectionMatrix} = scene;
+                projectionMatrix[2] *= factor;
+                projectionMatrix[6] *= factor;
+                projectionMatrix[10] *= factor;
+                projectionMatrix[14] *= factor;
+                projectionMatrix[2] += projectionMatrix[3] * offset;
+                projectionMatrix[6] += projectionMatrix[7] * offset;
+                projectionMatrix[10] += projectionMatrix[11] * offset;
+                projectionMatrix[14] += projectionMatrix[15] * offset;
+
+                mat4.multiply(mvp, scene.projectionMatrix, scene.viewMatrix);
+            } else {
+                // Marker was not detected
+                scene.skipScene = true;
+                mat4.identity(scene.viewMatrix);
+                mat4.identity(scene.projectionMatrix);
+            }
         } else {
-            renderer.scene.enableAR = false;
+            scene.enableAR = false;
+            scene.skipScene = false;
+
+            scene.viewMatrix = new CameraStateInfo(this.smoothedCamera).viewMatrix;
+            mat4.perspective(renderer.scene.projectionMatrix, 1.0, canvas.width / canvas.height, 1, 500);
+
+            // Convert Z from (-1 -> 1) to (32768 -> 0) (for more precision)
+            mat4.multiply(
+                scene.projectionMatrix,
+                mat4.scale(
+                    mat4.create(),
+                    mat4.fromTranslation(
+                        mat4.create(),
+                        [0, 0, 16384]
+                    ),
+                    [1, 1, -16384]
+                ),
+                scene.projectionMatrix,
+            );
         }
 
         renderer.voxel.updateFrom(editorState.workspace.work.data);
@@ -350,13 +435,18 @@ export class Viewport extends React.Component<ViewportProps, State>
         this.updateStopwatch.reset();
 
         if (this.props.editorState.displayMode !== prevProps.editorState.displayMode) {
-            if (this.props.editorState.displayMode == DisplayMode.AR) {
-                this.props.persistent.ar.tryActivate();
-                if (this.props.persistent.ar.state == ARState.Active) {
-                    this.props.persistent.ar.play();
+            const {editorState, persistent} = this.props;
+
+            if (editorState.displayMode == DisplayMode.AR) {
+                persistent.ar.tryActivate();
+                if (persistent.ar.activeState) {
+                    // If AR is already active, then restart it.
+                    persistent.ar.activeState.play();
                 }
             } else {
-                this.props.persistent.ar.stop();
+                if (persistent.ar.activeState) {
+                    persistent.ar.activeState.stop();
+                }
             }
 
             // Delay the actual switch so we can have a time to fade out the viewport
@@ -383,9 +473,10 @@ export class Viewport extends React.Component<ViewportProps, State>
     @bind
     private handleChangeARState(): void
     {
+        const {ar} = this.props.persistent;
         this.setState({
-            arState: this.props.persistent.ar.state,
-            arPlaying: this.props.persistent.ar.isPlaying,
+            arState: ar.state,
+            arPlaying: ar.activeState != null && ar.activeState.isPlaying,
         });
     }
 
@@ -398,6 +489,8 @@ export class Viewport extends React.Component<ViewportProps, State>
     @bind
     private update(): void
     {
+        const {persistent} = this.props;
+
         let needsToUpdate = this.needsUpdate;
         this.needsUpdate = false;
 
@@ -407,7 +500,9 @@ export class Viewport extends React.Component<ViewportProps, State>
                 needsToUpdate = this.updateStopwatch.elapsed < 5000;
             } else if (this.state.actualDisplayMode == DisplayMode.AR) {
                 // Poll `ARMain` and re-render only if we get a new data
-                needsToUpdate = this.props.persistent.ar.update();
+                if (persistent.ar.activeState) {
+                    needsToUpdate = persistent.ar.activeState.update();
+                }
             }
         }
 
@@ -416,9 +511,9 @@ export class Viewport extends React.Component<ViewportProps, State>
             needsToUpdate = true;
         }
 
-        this.props.persistent.update(this.state, this.props, needsToUpdate);
+        persistent.update(this.state, this.props, needsToUpdate);
 
-        if (this.props.persistent.numRenderedFrames > 10 && !this.state.loaded) {
+        if (persistent.numRenderedFrames > 10 && !this.state.loaded) {
             // All shaders should be ready now
             this.setState({ loaded: true });
         }

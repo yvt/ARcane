@@ -360,7 +360,6 @@
 		The debug canvas is added to document.body.
 	*/
 	ARController.prototype.debugSetup = function() {
-		document.body.appendChild(this.canvas)
 		this.setDebugMode(1);
 		this._bwpointer = this.getProcessingImage();
 	};
@@ -389,6 +388,14 @@
 	*/
 	ARController.prototype.loadMultiMarker = function(markerURL, onSuccess, onError) {
 		return artoolkit.addMultiMarker(this.id, markerURL, onSuccess, onError);
+	};
+
+	/** **ARcane specific** Promise version of `loadMultiMarker`. */
+	ARController.prototype.loadMultiMarkerPromise = function (markerURL) {
+		var self = this;
+		return new Promise(function (resolve, reject) {
+			return self.loadMultiMarker(markerURL, resolve, reject);
+		});
 	};
 
 	/**
@@ -1289,6 +1296,7 @@
 		return video;
 	};
 
+	/** **ARcane specific** Promise version of `getUserMediaARController`. */
 	ARController.getUserMediaARControllerPromise = function (configuration) {
 		var self = this;
 		return new Promise(function (resolve, reject) {
@@ -1583,6 +1591,27 @@
 	//	ajax('../bin/Data/patt.hiro', '/patt.hiro', callback);
 
 	function ajax(url, target, callback) {
+		// ARcane specific
+		var fetcher = null;
+		if (typeof url === 'object') {
+			fetcher = url.fetcher;
+			url = url.url;
+		}
+
+		if (fetcher) {
+			fetcher(url).then(function (data) {
+				if (typeof data === 'string') {
+					writeStringToFS(target, data, callback);
+				} else if (data instanceof Uint8Array) {
+					writeByteArrayToFS(target, data, callback);
+				} else {
+					throw new Error("Invalid type");
+				}
+			}); // Whoa! There is no error callback!
+			return;
+		}
+
+		// Original loading code from jsartoolkit
 		var oReq = new XMLHttpRequest();
 		oReq.open('GET', url, true);
 		oReq.responseType = 'arraybuffer'; // blob arraybuffer

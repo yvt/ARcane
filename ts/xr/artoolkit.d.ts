@@ -1,6 +1,12 @@
 /** Type unknown due to lack of documentation. */
 export type Unknown = any;
 
+/** **ARcane specific** */
+export type ARToolkitAjaxUrl = string | {
+    url: string;
+    fetcher?: (url: string) => PromiseLike<Uint8Array | string>;
+};
+
 export interface ARToolkitTrackedMarker
 {
     inPrevious: boolean;
@@ -73,6 +79,8 @@ export interface ARController
     readonly videoWidth: number;
     readonly videoHeight: number;
     orientation: 'landscape' | 'portrait';
+
+    readonly id: number;
 
     /**
      *  Destroys the ARController instance and frees all associated resources.
@@ -231,7 +239,7 @@ export interface ARController
      * @param {function} onSuccess - The success callback. Called with the id of the loaded marker on a successful load.
      * @param {function} onError - The error callback. Called with the encountered error if the load fails.
     */
-    loadMarker(markerURL: string, onSuccess: (id: number) => void, onError: (reason: any) => void): void;
+    loadMarker(markerURL: ARToolkitAjaxUrl, onSuccess: (id: number) => void, onError: (reason: any) => void): void;
 
     /**
      * Loads a multimarker from the given URL and calls the onSuccess callback with the UID of the marker.
@@ -242,7 +250,10 @@ export interface ARController
      * @param {function} onSuccess - The success callback. Called with the id and the number of sub-markers of the loaded marker on a successful load.
      * @param {function} onError - The error callback. Called with the encountered error if the load fails.
     */
-    loadMultiMarker(markerURL: string, onSuccess: (id: number) => void, onError: (reason: any) => void): void;
+    loadMultiMarker(markerURL: ARToolkitAjaxUrl, onSuccess: (id: number) => void, onError: (reason: any) => void): void;
+
+    /** **ARcane specific** Promise version of `loadMultiMarker`. */
+    loadMultiMarkerPromise(markerURL: ARToolkitAjaxUrl): Promise<number>;
 
     /**
      * Populates the provided float array with the current transformation for the specified marker. After
@@ -860,10 +871,10 @@ export interface ARToolkit
     AR_MARKER_INFO_CUTOFF_PHASE_POSE_ERROR_MULTI: number;
     AR_MARKER_INFO_CUTOFF_PHASE_HEURISTIC_TROUBLESOME_MATRIX_CODES: number;
 
-    loadCamera(url: string | object, callback: (id: number) => void): void;
+    loadCamera(url: ARToolkitAjaxUrl | Uint8Array, callback: (id: number) => void): void;
 
-    addMarker(arId: Unknown, url: string, callback: (id: number) => void): void;
-    addMultiMarker(arId: Unknown, url: string, callback: (id: number) => void): void;
+    addMarker(arId: Unknown, url: ARToolkitAjaxUrl, callback: (id: number) => void): void;
+    addMultiMarker(arId: Unknown, url: ARToolkitAjaxUrl, callback: (id: number) => void): void;
 
     // These function become available after the Emscripten module was loaded
     setup: Function | null;
