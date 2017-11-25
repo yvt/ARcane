@@ -6,8 +6,7 @@ const imageUrl = process.env.NODE_ENV !== 'production' ? require('file-loader!./
 /**
  * Outputs a banner message to the browser's console in order to support
  * developers by printing useful information as well as providing visual simuli
- * specifically designed to induce a positive psychological effect on a certain
- * demographic.
+ * specifically designed to induce a positive psychological effect.
  *
  * Providing visual stimuli is disabled on the release build due to its possible
  * detrimental impact on the loading performance.
