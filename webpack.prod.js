@@ -1,6 +1,7 @@
 const webpack = require('webpack');
 const merge = require('webpack-merge');
 const UglifyJSPlugin = require('uglifyjs-webpack-plugin');
+const CompressionPlugin = require("compression-webpack-plugin");
 const common = require('./webpack.common.js');
 
 module.exports = merge(common(false), {
@@ -13,6 +14,9 @@ module.exports = merge(common(false), {
       'process.env': {
         'NODE_ENV': JSON.stringify('production')
       },
+    }),
+    new CompressionPlugin({
+      test: /\.js$|\.css$/,
     }),
   ],
 });

@@ -1,6 +1,8 @@
 /node_modules
 /dist/bundle.js
+/dist/bundle.js.gz
 /dist/bundle.js.map
 /dist/bundle.css
+/dist/bundle.css.gz
 /dist/bundle.css.map
 /ts/gui/*.d.ts
