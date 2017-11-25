@@ -2,4 +2,5 @@
 /dist/bundle.js
 /dist/bundle.js.map
 /dist/bundle.css
+/dist/bundle.css.map
 /ts/gui/*.d.ts
