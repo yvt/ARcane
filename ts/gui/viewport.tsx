@@ -153,8 +153,7 @@ export class Viewport extends React.Component<ViewportProps, State> implements V
     {
         const {persistent} = this.props;
 
-        let needsToUpdate = this.needsUpdate;
-        this.needsUpdate = false;
+        let needsToUpdate = false;
 
         if (!this.state.switchingMode) {
             if (this.state.actualDisplayMode == DisplayMode.Normal) {
@@ -171,6 +170,12 @@ export class Viewport extends React.Component<ViewportProps, State> implements V
         if (!this.state.loaded) {
             // Warm up shaders
             needsToUpdate = true;
+        }
+
+        if (this.needsUpdate) {
+            // Requested by `ViewportPersistent`
+            needsToUpdate = true;
+            this.needsUpdate = false;
         }
 
         persistent.update(needsToUpdate);

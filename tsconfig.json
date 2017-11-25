@@ -14,6 +14,7 @@
             "WebWorker",
             "ES2015.Collection",
             "ES2015.Promise",
+            "ES2015.Core",
         ],
         "allowJs": true,
         "experimentalDecorators": true,

@@ -5,6 +5,7 @@ import { lerp } from '../utils/math';
 import { Stopwatch } from '../utils/time';
 import { IDisposable } from '../utils/interfaces';
 import { LogManager } from '../utils/logger';
+import { RaytraceHit, raytrace } from '../model/raytrace';
 
 import { Renderer } from '../draw/main';
 import { LineGizmo, LineStyle } from '../draw/model';
@@ -55,16 +56,20 @@ export class ViewportPersistent implements IDisposable
     readonly canvas = document.createElement('canvas');
     readonly ar: ARMain;
 
-    private readonly mouseRouter: MouseRouter<MouseGrabState>;
+    private listener: ViewportPersistentListener | null;
+
+    // # Rendering
     private readonly context: WebGLRenderingContext;
     private readonly renderer: Renderer;
-
     private numRenderedFrames = 0;
 
     private smoothedCamera: CameraState | null;
     private readonly stopwatch = new Stopwatch();
+    private readonly boundingBoxGizmos: LineGizmo[];
 
-    private listener: ViewportPersistentListener | null;
+    // # Input
+    private readonly mouseRouter: MouseRouter<MouseGrabState>;
+    private clipSpaceMouseLocation: vec2 | null = null;
 
     constructor(logManager: LogManager)
     {
@@ -78,9 +83,24 @@ export class ViewportPersistent implements IDisposable
 
         this.renderer = new Renderer(this.context, logManager, createWorkerClient);
 
-        this.canvas.addEventListener('mousemove', () => {
+        this.canvas.addEventListener('mousemove', (e) => {
+            const rect = this.canvas.getBoundingClientRect();
+            this.clipSpaceMouseLocation = vec2.set(
+                this.clipSpaceMouseLocation || vec2.create(),
+                (e.clientX - rect.left) / rect.width * 2 - 1,
+                1 - (e.clientY - rect.top) / rect.height * 2,
+            );
             if (this.listener) {
                 this.listener.handleInputDeviceDetected('mouse');
+                this.listener.handleNeedsUpdate();
+            }
+        });
+        this.canvas.addEventListener('mouseleave', () => {
+            if (this.clipSpaceMouseLocation) {
+                this.clipSpaceMouseLocation = null;
+                if (this.listener) {
+                    this.listener.handleNeedsUpdate();
+                }
             }
         });
 
@@ -173,36 +193,68 @@ export class ViewportPersistent implements IDisposable
 
         // TODO: touch input
 
-        // Add gizmos
-        for (let col = 0; col <= 1; col++) {
-            for (let i = 0; i <= 256; i += 256) {
-                const g = new LineGizmo();
-                g.points.push(vec3.fromValues(0, 0, i));
-                g.points.push(vec3.fromValues(256, 0, i));
-                g.points.push(vec3.fromValues(256, 256, i));
-                g.points.push(vec3.fromValues(0, 256, i));
-                g.closed = true;
-                vec4.set(g.color, col, col, col, 1);
-                g.style = LineStyle.DASH;
-                this.renderer.scene.gizmos.push(g);
-            }
+        {
+            const gs: LineGizmo[] = [];
+            for (let col = 0; col <= 1; col++) {
+                for (let i = 0; i <= 256; i += 256) {
+                    const g = new LineGizmo();
+                    g.points.push(vec3.fromValues(0, 0, i));
+                    g.points.push(vec3.fromValues(256, 0, i));
+                    g.points.push(vec3.fromValues(256, 256, i));
+                    g.points.push(vec3.fromValues(0, 256, i));
+                    g.closed = true;
+                    vec4.set(g.color, col, col, col, 1);
+                    g.style = LineStyle.DASH;
+                    gs.push(g);
+                }
 
-            for (let i = 0; i < 4; ++i) {
-                const g = new LineGizmo();
-                const x = (i & 1) * 256;
-                const y = (i >> 1) * 256;
-                g.points.push(vec3.fromValues(x, y, 0));
-                g.points.push(vec3.fromValues(x, y, 256));
-                vec4.set(g.color, col, col, col, 1);
-                g.style = LineStyle.DASH;
-                this.renderer.scene.gizmos.push(g);
+                for (let i = 0; i < 4; ++i) {
+                    const g = new LineGizmo();
+                    const x = (i & 1) * 256;
+                    const y = (i >> 1) * 256;
+                    g.points.push(vec3.fromValues(x, y, 0));
+                    g.points.push(vec3.fromValues(x, y, 256));
+                    vec4.set(g.color, col, col, col, 1);
+                    g.style = LineStyle.DASH;
+                    gs.push(g);
+                }
             }
+            this.boundingBoxGizmos = gs;
         }
     }
 
     get isShadersReady(): boolean
     {
         return this.numRenderedFrames > 10;
+    }
+
+    /**
+     * Retrieve the result of the pointer hit scan.
+     */
+    private get cursorRaytraceHit(): RaytraceHit | null
+    {
+        const {clipSpaceMouseLocation, listener} = this;
+        if (!clipSpaceMouseLocation || !listener) {
+            return null;
+        }
+        const {scene} = this.renderer;
+        if (scene.skipScene) {
+            return null;
+        }
+
+        // Construct the ray
+        const m = mat4.create();
+        mat4.multiply(m, scene.projectionMatrix, scene.viewMatrix);
+        mat4.invert(m, m);
+
+        const rayStart = vec3.set(vec3.create(), clipSpaceMouseLocation[0], clipSpaceMouseLocation[1], scene.depthNear);
+        const rayEnd = vec3.set(vec3.create(), clipSpaceMouseLocation[0], clipSpaceMouseLocation[1], scene.depthFar);
+        vec3.transformMat4(rayStart, rayStart, m);
+        vec3.transformMat4(rayEnd, rayEnd, m);
+
+        // Perform ray trace
+        const {data} = listener.editorState.workspace.work;
+        return raytrace(data.data!, rayStart, rayEnd);
     }
 
     update(render: boolean): void
@@ -246,9 +298,10 @@ export class ViewportPersistent implements IDisposable
             this.smoothedCamera = camera;
         }
 
-        // Do AR thingy
         const scene = renderer.scene;
+        scene.gizmos.length = 0;
         if (actualDisplayMode === DisplayMode.AR && this.ar.activeState) {
+            // Do AR thingy
             scene.enableAR = true;
 
             const activeState = this.ar.activeState;
@@ -368,6 +421,34 @@ export class ViewportPersistent implements IDisposable
 
         scene.depthNear = 32768;
         scene.depthFar = 0;
+
+        // Draw bounding box
+        Array.prototype.push.apply(scene.gizmos, this.boundingBoxGizmos);
+
+        // Highlight the hot voxel
+        const hit = this.cursorRaytraceHit;
+        if (hit && hit.hit && hit.normal) {
+            const bx = Math.max(0, hit.normal.normal[0]) + hit.voxel[0];
+            const by = Math.max(0, hit.normal.normal[1]) + hit.voxel[1];
+            const bz = Math.max(0, hit.normal.normal[2]) + hit.voxel[2];
+            const tan1x = Math.abs(hit.normal.normal[2]);
+            const tan1y = Math.abs(hit.normal.normal[0]);
+            const tan1z = Math.abs(hit.normal.normal[1]);
+            const tan2x = Math.abs(hit.normal.normal[1]);
+            const tan2y = Math.abs(hit.normal.normal[2]);
+            const tan2z = Math.abs(hit.normal.normal[0]);
+            for (let i = 0; i < 2; ++i) {
+                const g = new LineGizmo();
+                g.points.push(vec3.fromValues(bx, by, bz));
+                g.points.push(vec3.fromValues(bx + tan1x, by + tan1y, bz + tan1z));
+                g.points.push(vec3.fromValues(bx + tan1x + tan2x, by + tan1y + tan2y, bz + tan1z + tan2z));
+                g.points.push(vec3.fromValues(bx + tan2x, by + tan2y, bz + tan2z));
+                g.closed = true;
+                vec4.set(g.color, i, i, i, 1);
+                g.style = LineStyle.SOLID;
+                scene.gizmos.push(g);
+            }
+        }
 
         renderer.voxel.updateFrom(editorState.workspace.work.data);
         renderer.render();
