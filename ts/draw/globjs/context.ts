@@ -215,7 +215,7 @@ export class GLContext
     set states(newFlags: GLStateFlags)
     {
         const {gl} = this;
-        const diff = newFlags ^ this.drawBuffers;
+        const diff = newFlags ^ this._state;
         if (diff & GLStateFlags.BlendEnabled) {
             if (newFlags & GLStateFlags.BlendEnabled) {
                 gl.enable(GLConstants.BLEND);
