@@ -12,7 +12,6 @@ import { createWorkerClient } from '../workerclient';
 
 import { EditorState, CameraState, DisplayMode, CameraStateInfo } from './editorstate';
 import { MouseRouter } from './utils/mousecapture';
-import { State, ViewportProps } from './viewport';
 
 import { ARMain } from '../xr/main';
 
@@ -23,6 +22,20 @@ const stats = new Stats();
 stats.setMode(0);
 stats.domElement.className = classNames.stats;
 document.body.appendChild(stats.domElement);
+
+export interface ViewportPersistentListener
+{
+    readonly editorState: EditorState;
+    readonly actualDisplayMode: DisplayMode;
+
+    /**
+     * Notifies that the viewport must be re-rendered due to a change in the internal
+     * state of `ViewportPersistent` while `EditorState` is unmodified.
+     */
+    handleNeedsUpdate(): void;
+    handleInputDeviceDetected(type: 'mouse' | 'touch'): void;
+    handleEditorStateUpdate(trans: (oldState: EditorState) => EditorState): void;
+}
 
 interface MouseGrabState
 {
@@ -40,24 +53,18 @@ enum MouseGrabMode
 export class ViewportPersistent implements IDisposable
 {
     readonly canvas = document.createElement('canvas');
-    readonly mouseRouter: MouseRouter<MouseGrabState>;
-    readonly context: WebGLRenderingContext;
-    readonly renderer: Renderer;
     readonly ar: ARMain;
 
-    numRenderedFrames = 0;
+    private readonly mouseRouter: MouseRouter<MouseGrabState>;
+    private readonly context: WebGLRenderingContext;
+    private readonly renderer: Renderer;
+
+    private numRenderedFrames = 0;
 
     private smoothedCamera: CameraState | null;
-    private stopwatch = new Stopwatch();
+    private readonly stopwatch = new Stopwatch();
 
-    /**
-     * Notifies that the viewport must be re-rendered due to a change in the internal
-     * state of `ViewportPersistent` while `EditorState` is unmodified.
-     */
-    onNeedsUpdate: (() => void) | null = null;
-    onMouseInputDeviceDetected: (() => void) | null = null;
-    onTouchInputDeviceDetected: (() => void) | null = null;
-    onEditorStateUpdate: ((trans: (oldState: EditorState) => EditorState) => void) | null = null;
+    private listener: ViewportPersistentListener | null;
 
     constructor(logManager: LogManager)
     {
@@ -72,8 +79,8 @@ export class ViewportPersistent implements IDisposable
         this.renderer = new Renderer(this.context, logManager, createWorkerClient);
 
         this.canvas.addEventListener('mousemove', () => {
-            if (this.onMouseInputDeviceDetected) {
-                this.onMouseInputDeviceDetected();
+            if (this.listener) {
+                this.listener.handleInputDeviceDetected('mouse');
             }
         });
 
@@ -117,8 +124,8 @@ export class ViewportPersistent implements IDisposable
                     // TODO
                     break;
                 case MouseGrabMode.Camera:
-                    if (this.onEditorStateUpdate) {
-                        this.onEditorStateUpdate((oldState) => {
+                    if (this.listener) {
+                        this.listener.handleEditorStateUpdate((oldState) => {
                             if (e.shiftKey) {
                                 // translation
                                 const m = new CameraStateInfo(oldState.camera).viewMatrix;
@@ -193,9 +200,17 @@ export class ViewportPersistent implements IDisposable
         }
     }
 
-    update(state: State, props: ViewportProps, render: boolean): void
+    get isShadersReady(): boolean
     {
-        const {editorState} = props;
+        return this.numRenderedFrames > 10;
+    }
+
+    update(render: boolean): void
+    {
+        if (!this.listener) {
+            throw new Error("Not mounted");
+        }
+        const {editorState, actualDisplayMode} = this.listener;
         const {canvas, renderer} = this;
 
         // Use the parent element's bounding rect so it won't be affected by
@@ -233,7 +248,7 @@ export class ViewportPersistent implements IDisposable
 
         // Do AR thingy
         const scene = renderer.scene;
-        if (state.actualDisplayMode === DisplayMode.AR && this.ar.activeState) {
+        if (actualDisplayMode === DisplayMode.AR && this.ar.activeState) {
             scene.enableAR = true;
 
             const activeState = this.ar.activeState;
@@ -361,9 +376,21 @@ export class ViewportPersistent implements IDisposable
         stats.end();
     }
 
-    mount(): void
+    mount(listener: ViewportPersistentListener): void
     {
+        if (this.listener != null) {
+            throw new Error("Already mounted");
+        }
+        this.listener = listener;
         this.smoothedCamera = null;
+    }
+
+    unmount(): void
+    {
+        if (this.listener == null) {
+            throw new Error("Not mounted");
+        }
+        this.listener = null;
     }
 
     dispose(): void

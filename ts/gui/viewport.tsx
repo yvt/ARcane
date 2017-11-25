@@ -7,7 +7,7 @@ import { Port } from './utils/port';
 import { RequestAnimationFrame } from './utils/animationframe';
 
 import { EditorState, DisplayMode } from './editorstate';
-import { ViewportPersistent } from './viewportpersistent';
+import { ViewportPersistent, ViewportPersistentListener } from './viewportpersistent';
 
 import { ARMain, ARState } from '../xr/main';
 
@@ -32,7 +32,7 @@ export interface State
     actualDisplayMode: DisplayMode;
 }
 
-export class Viewport extends React.Component<ViewportProps, State>
+export class Viewport extends React.Component<ViewportProps, State> implements ViewportPersistentListener
 {
     private displayModeSwitchTimer: number | null;
     private updateStopwatch = new Stopwatch();
@@ -53,47 +53,15 @@ export class Viewport extends React.Component<ViewportProps, State>
 
     componentDidMount()
     {
-        if (this.props.persistent.onEditorStateUpdate) {
-            throw new Error("ViewportPersistent is already mounted on some Viewport");
-        }
+        this.props.persistent.mount(this);
         this.props.persistent.ar.onChangeState.connect(this.handleChangeARState);
-        this.props.persistent.onEditorStateUpdate = this.handleEditorStateUpdateByPersistent;
-        this.props.persistent.onNeedsUpdate = this.handleNeedsUpdate;
-        this.props.persistent.onMouseInputDeviceDetected = () => {
-            if (!this.props.editorState.inputDevicesInUse.touch) {
-                // The presence of a mouse was detected
-                this.props.onChangeEditorState({
-                    ... this.props.editorState,
-                    inputDevicesInUse: {
-                        ... this.props.editorState.inputDevicesInUse,
-                        mouse: true,
-                    },
-                });
-            }
-        };
-        this.props.persistent.onTouchInputDeviceDetected = () => {
-            if (!this.props.editorState.inputDevicesInUse.touch) {
-                // The presence of a mouse was detected
-                this.props.onChangeEditorState({
-                    ... this.props.editorState,
-                    inputDevicesInUse: {
-                        ... this.props.editorState.inputDevicesInUse,
-                        touch: true,
-                    },
-                });
-            }
-        };
-        this.props.persistent.mount();
         this.needsUpdate = true;
     }
 
     componentWillUnmount()
     {
         this.props.persistent.ar.onChangeState.disconnect(this.handleChangeARState);
-        this.props.persistent.onEditorStateUpdate = null;
-        this.props.persistent.onMouseInputDeviceDetected = null;
-        this.props.persistent.onTouchInputDeviceDetected = null;
-        this.props.persistent.onNeedsUpdate = null;
+        this.props.persistent.unmount();
 
         if (this.displayModeSwitchTimer != null) {
             window.clearTimeout(this.displayModeSwitchTimer);
@@ -141,12 +109,6 @@ export class Viewport extends React.Component<ViewportProps, State>
     }
 
     @bind
-    private handleNeedsUpdate(): void
-    {
-        this.needsUpdate = true;
-    }
-
-    @bind
     private handleChangeARState(): void
     {
         const {ar} = this.props.persistent;
@@ -156,11 +118,35 @@ export class Viewport extends React.Component<ViewportProps, State>
         });
     }
 
-    @bind
-    private handleEditorStateUpdateByPersistent(trans: (oldState: EditorState) => EditorState): void
+    /// Required to implement `ViewportPersistentListener`
+    handleNeedsUpdate(): void { this.needsUpdate = true; }
+
+    /// Required to implement `ViewportPersistentListener`
+    handleEditorStateUpdate(trans: (oldState: EditorState) => EditorState): void
     {
         this.props.onChangeEditorState(trans(this.props.editorState));
     }
+
+    /// Required to implement `ViewportPersistentListener`
+    handleInputDeviceDetected(type: 'touch' | 'mouse'): void
+    {
+        if (!this.props.editorState.inputDevicesInUse[type]) {
+            // The presence of a mouse was detected
+            this.props.onChangeEditorState({
+                ... this.props.editorState,
+                inputDevicesInUse: {
+                    ... this.props.editorState.inputDevicesInUse,
+                    [type]: true,
+                },
+            });
+        }
+    }
+
+    /// Required to implement `ViewportPersistentListener`
+    get editorState(): EditorState { return this.props.editorState; }
+
+    /// Required to implement `ViewportPersistentListener`
+    get actualDisplayMode(): DisplayMode { return this.state.actualDisplayMode; }
 
     @bind
     private update(): void
@@ -187,9 +173,9 @@ export class Viewport extends React.Component<ViewportProps, State>
             needsToUpdate = true;
         }
 
-        persistent.update(this.state, this.props, needsToUpdate);
+        persistent.update(needsToUpdate);
 
-        if (persistent.numRenderedFrames > 10 && !this.state.loaded) {
+        if (persistent.isShadersReady && !this.state.loaded) {
             // All shaders should be ready now
             this.setState({ loaded: true });
         }
