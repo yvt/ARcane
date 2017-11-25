@@ -1,7 +1,10 @@
 require('coffeescript/register');
 const path = require('path');
 
+const webpack = require('webpack');
 const ExtractTextPlugin = require("extract-text-webpack-plugin");
+const GitRevisionPlugin = require('git-revision-webpack-plugin');
+const gitRevision = new GitRevisionPlugin();
 
 module.exports = debug => ({
   entry: './ts/index.ts',
@@ -51,5 +54,12 @@ module.exports = debug => ({
   },
   plugins: [
     new ExtractTextPlugin('bundle.css'),
+    new webpack.DefinePlugin({
+      'process.env': {
+        'VERSION': JSON.stringify(gitRevision.version()),
+        'COMMITHASH': JSON.stringify(gitRevision.commithash()),
+        'BRANCH': JSON.stringify(gitRevision.branch()),
+      },
+    }),
   ],
 });
