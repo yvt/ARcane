@@ -2,7 +2,8 @@ import * as React from 'react';
 import bind from 'bind-decorator';
 
 import { LogManager } from '../utils/logger';
-import { Viewport, ViewportPersistent } from './viewport';
+import { Viewport } from './viewport';
+import { ViewportPersistent } from './viewportpersistent';
 import { ViewportOverlay } from './viewportoverlay';
 
 import { createEditorState, EditorState } from './editorstate';
