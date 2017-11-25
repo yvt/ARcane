@@ -9,6 +9,7 @@ import { lerp } from '../utils/math';
 import { IDisposable } from '../utils/interfaces';
 import { LogManager } from '../utils/logger';
 import { Renderer } from '../draw/main';
+import { LineGizmo, LineStyle } from '../draw/model';
 import { createWorkerClient } from '../workerclient';
 
 import { Port } from './utils/port';
@@ -168,6 +169,32 @@ export class ViewportPersistent implements IDisposable
         };
 
         // TODO: touch input
+
+        // Add gizmos
+        for (let col = 0; col <= 1; col++) {
+            for (let i = 0; i <= 256; i += 256) {
+                const g = new LineGizmo();
+                g.points.push(vec3.fromValues(0, 0, i));
+                g.points.push(vec3.fromValues(256, 0, i));
+                g.points.push(vec3.fromValues(256, 256, i));
+                g.points.push(vec3.fromValues(0, 256, i));
+                g.closed = true;
+                vec4.set(g.color, col, col, col, 1);
+                g.style = LineStyle.DASH;
+                this.renderer.scene.gizmos.push(g);
+            }
+
+            for (let i = 0; i < 4; ++i) {
+                const g = new LineGizmo();
+                const x = (i & 1) * 256;
+                const y = (i >> 1) * 256;
+                g.points.push(vec3.fromValues(x, y, 0));
+                g.points.push(vec3.fromValues(x, y, 256));
+                vec4.set(g.color, col, col, col, 1);
+                g.style = LineStyle.DASH;
+                this.renderer.scene.gizmos.push(g);
+            }
+        }
     }
 
     update(state: State, props: ViewportProps, render: boolean): void
@@ -327,6 +354,9 @@ export class ViewportPersistent implements IDisposable
 
             canvas.style.filter = '';
         }
+
+        scene.depthNear = 32768;
+        scene.depthFar = 0;
 
         renderer.voxel.updateFrom(editorState.workspace.work.data);
         renderer.render();

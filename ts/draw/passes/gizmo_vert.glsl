@@ -22,9 +22,12 @@ void main() {
     v_ScreenCoord = a_Position;
     v_Color = a_Color;
 
+    // (currently we assume this)
+    v_ScreenCoord.w = 1.0;
+
     // `v_ScreenCoord.xy` is UV coordinates
     v_ScreenCoord.xy = v_ScreenCoord.xy * 0.5 + v_ScreenCoord.w * 0.5;
 
-    // Degenerate the Z coordinate
+    // Squash the Z coordinate (we do depth testing and clipping by ourselves)
     gl_Position.z = 0.0;
 }
