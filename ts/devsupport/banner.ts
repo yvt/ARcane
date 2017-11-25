@@ -1,4 +1,10 @@
 /// <reference path="../../node_modules/consolist/consolist.d.ts" />
+/*
+ * Copyright (c) 2017 ARcane Developers
+ *
+ * This file is a part of ARcane. Please read the license text that
+ * comes with the source code for use conditions.
+ */
 import { render } from 'consolist';
 const loadImage: (path: string) => Promise<HTMLImageElement> = require('image-promise');
 const imageUrl = process.env.NODE_ENV !== 'production' ? require('file-loader!./princess.png') : null;
@@ -10,6 +16,8 @@ const imageUrl = process.env.NODE_ENV !== 'production' ? require('file-loader!./
  *
  * Providing visual stimuli is disabled on the release build due to its possible
  * detrimental impact on the loading performance.
+ *
+ * It also outputs a license notice.
  */
 export async function writeBanner(): Promise<void>
 {
@@ -32,4 +40,16 @@ export async function writeBanner(): Promise<void>
     console.log(`  Version:     ${process.env.VERSION}`);
     console.log(`  Commit Hash: ${process.env.COMMITHASH}`);
     console.log(`  Branch:      ${process.env.BRANCH}`);
+
+    if (process.env.NODE_ENV !== 'production') {
+        console.log("%cCopyright Notice:", 'font-weight: bold; text-transform: uppercase');
+        console.log("  (ARcane is currently running in the development mode.");
+        console.log("  This build is never meant to be public.)");
+    } else {
+        console.log("%cCopyright Notice:", 'font-weight: bold; text-transform: uppercase');
+        console.log("  ARcane, Copyright © 2017 ARcane Developers");
+        console.log("  Licensed under GNU GPL version 3 or later <http://gnu.org/licenses/gpl.html>");
+        console.log("  This is free software: you are free to change and redistribute it.");
+        console.log("  This program comes with ABSOLUTELY NO WARRANTY to the extent permitted by law.");
+    }
 }

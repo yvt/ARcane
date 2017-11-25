@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2017 ARcane Developers
+ *
+ * This file is a part of ARcane. Please read the license text that
+ * comes with the source code for use conditions.
+ */
 import { IDisposable } from '../utils/interfaces';
 import { assertEq } from '../utils/utils';
 import { setBitArrayRange, findOneInBitArray, findZeroInBitArray } from '../utils/bits';

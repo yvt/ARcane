@@ -1,3 +1,10 @@
+/*
+ * Copyright (c) 2017 ARcane Developers
+ *
+ * This file is a part of ARcane. Please read the license text that
+ * comes with the source code for use conditions.
+ */
+
 // exports
 #pragma global v_TexCoord               // varying highp vec2
 #pragma global v_VSPosBase              // varying highp vec4

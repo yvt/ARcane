@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2017 ARcane Developers
+ *
+ * This file is a part of ARcane. Please read the license text that
+ * comes with the source code for use conditions.
+ */
 const Stats = require('stats-js');
 import { vec2, vec3, vec4, mat4 } from 'gl-matrix';
 

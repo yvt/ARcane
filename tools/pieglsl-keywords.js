@@ -1,3 +1,5 @@
+// Public domain
+
 // Do NOT remove any words from this list or you'll break the backward
 // compatibility!
 const glslCompressedKeywords = [

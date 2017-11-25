@@ -1,5 +1,5 @@
 /**
- * artoolkit.api.js from jsartoolkit5 modified to act more like a CommonJS module.
+ * artoolkit.api.js from jsartoolkit5 with some minor modifications.
  *
  * @license ARToolKit License (LGPLv3 with a static-linking exception)
  */

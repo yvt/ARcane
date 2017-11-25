@@ -9,6 +9,14 @@
   This behavior can be suppressed by the `debug` option.
 
 ###
+
+###
+  Copyright (c) 2017 ARcane Developers
+
+  This file is a part of ARcane. Please read the license text that
+  comes with the source code for use conditions.
+###
+
 loaderUtils = require 'loader-utils'
 {compressSourceText} = require './pieglsl-compressor'
 

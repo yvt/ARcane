@@ -1,3 +1,9 @@
+/*
+ * Copyright (c) 2017 ARcane Developers
+ *
+ * This file is a part of ARcane. Please read the license text that
+ * comes with the source code for use conditions.
+ */
 import { vec2, vec3, mat4 } from 'gl-matrix';
 import { Workspace } from '../model/workspace';
 import { createWork, mapIndex } from '../model/work';

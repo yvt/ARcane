@@ -1,3 +1,4 @@
+// Public domain
 
 /**
  * WebGL constants. Excerpted from WebGL 1.0/2.0 Specification.
