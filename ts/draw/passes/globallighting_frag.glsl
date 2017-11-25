@@ -26,7 +26,7 @@ void main() {
     // Fetch GBuffer 1
     mediump vec4 g1 = texture2D(g1Texture, v_TexCoord);
 
-    if (g1.x == 32768.0) {
+    if (g1.x == 0.0) {
         // Render the background (gradient)
 #if ENABLE_AR
         gl_FragColor = vec4(camera_image, 1.0);

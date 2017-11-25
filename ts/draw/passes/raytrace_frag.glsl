@@ -184,7 +184,7 @@ void main() {
             gl_FragColor.z = -1.0;
         } else {
             // Sky
-            gl_FragColor = vec4(32768.0, rayDir);
+            gl_FragColor = vec4(0.0, rayDir);
 
             // Skip Z value computation (since there is no actual ray intersection)
             return;
