@@ -6,9 +6,11 @@
  */
 
 // exports
+#pragma global u_DepthRange
+
+// varyings
 #pragma global v_TexCoord
 #pragma global v_CameraTexCoord
-#pragma global u_DepthRange
 
 // imports
 #pragma global ENABLE_AR

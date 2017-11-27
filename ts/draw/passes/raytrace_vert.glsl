@@ -9,6 +9,8 @@
 #pragma global a_Position
 #pragma global u_InvViewProjMat
 #pragma global u_DepthRange
+
+// varyings
 #pragma global v_RayStart
 #pragma global v_RayEnd
 

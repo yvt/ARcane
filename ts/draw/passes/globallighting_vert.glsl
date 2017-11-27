@@ -7,9 +7,11 @@
 
 // exports
 #pragma global a_Position
+#pragma global u_CameraTexMatrix
+
+// varyings
 #pragma global v_TexCoord
 #pragma global v_CameraTexCoord
-#pragma global u_CameraTexMatrix
 
 // imports
 #pragma global ENABLE_AR

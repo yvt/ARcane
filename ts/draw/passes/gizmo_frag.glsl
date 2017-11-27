@@ -5,7 +5,7 @@
  * comes with the source code for use conditions.
  */
 
-// exports
+// varyings
 #pragma global v_TexCoord       // varying highp vec2
 #pragma global v_ScreenCoord    // varying highp vec4
 #pragma global v_Color          // varying mediump vec4

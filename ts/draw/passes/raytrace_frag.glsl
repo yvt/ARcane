@@ -6,13 +6,15 @@
  */
 
 // exports
-#pragma global v_RayStart
-#pragma global v_RayEnd
 #pragma global u_ViewProjMat
 #pragma global u_DepthRange
 
 // imports
 #pragma global fetchVoxelDensity
+
+// varyings
+#pragma global v_RayStart
+#pragma global v_RayEnd
 
 // private
 #pragma global clipRay

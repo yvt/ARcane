@@ -191,7 +191,6 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
 {
     private readonly fragChunk = new PieShaderChunk<{
         ENABLE_AR: string;
-        v_TexCoord: string;
         u_DepthRange: string;
         g1Texture: string;
         ssaoTexture: string;
@@ -201,7 +200,6 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
     private readonly vertChunk = new PieShaderChunk<{
         ENABLE_AR: string;
         a_Position: string;
-        v_TexCoord: string;
         u_CameraTexMatrix: string;
     }>(globalLightingVertModule);
 

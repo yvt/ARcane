@@ -6,13 +6,14 @@
  */
 
 // exports
-#pragma global v_TexCoord       // varying highp vec2
-#pragma global v_ScreenCoord    // varying highp vec4
-#pragma global v_Color          // varying mediump vec4
-
 #pragma global a_Position       // attribute highp vec4
 #pragma global a_TexCoord       // attribute highp vec2
 #pragma global a_Color          // attribute mediump vec4
+
+// varyings
+#pragma global v_TexCoord       // varying highp vec2
+#pragma global v_ScreenCoord    // varying highp vec4
+#pragma global v_Color          // varying mediump vec4
 
 varying highp vec2 v_TexCoord;
 varying highp vec4 v_ScreenCoord;

@@ -92,13 +92,11 @@ class BlitShaderModule extends ShaderModule<BlitShaderInstance, BlitShaderParam>
     private readonly fragChunk = new PieShaderChunk<{
         u_Lod: string;
         inputTexture: string;
-        v_TexCoord: string;
     }>(blitFragModule);
     private readonly vertChunk = new PieShaderChunk<{
         a_Position: string;
         u_Input: string;
         u_Output: string;
-        v_TexCoord: string;
     }>(blitVertModule);
 
     readonly a_Position = this.vertChunk.bindings.a_Position;

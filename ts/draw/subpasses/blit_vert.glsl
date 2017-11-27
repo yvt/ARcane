@@ -9,6 +9,8 @@
 #pragma global a_Position
 #pragma global u_Input
 #pragma global u_Output
+
+// varyings
 #pragma global v_TexCoord
 
 attribute highp vec2 a_Position;

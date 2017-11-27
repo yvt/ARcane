@@ -304,16 +304,10 @@ interface GizmoShaderParam
 class GizmoShaderModule extends ShaderModule<GizmoShaderInstance, GizmoShaderParam>
 {
     private readonly fragChunk = new PieShaderChunk<{
-        v_TexCoord: string;
-        v_ScreenCoord: string;
-        v_Color: string;
         inputTexture: string;
         g1Texture: string;
     }>(pieFragModule);
     private readonly vertChunk = new PieShaderChunk<{
-        v_TexCoord: string;
-        v_ScreenCoord: string;
-        v_Color: string;
         a_Position: string;
         a_TexCoord: string;
         a_Color: string;

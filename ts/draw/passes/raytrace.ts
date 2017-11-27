@@ -155,16 +155,12 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
     private readonly fragChunk = new PieShaderChunk<{
         u_ViewProjMat: string;
         u_DepthRange: string;
-        v_RayStart: string;
-        v_RayEnd: string;
         fetchVoxelDensity: string;
     }>(raytraceFragModule);
     private readonly vertChunk = new PieShaderChunk<{
         a_Position: string;
         u_InvViewProjMat: string;
         u_DepthRange: string;
-        v_RayStart: string;
-        v_RayEnd: string;
     }>(raytraceVertModule);
 
     readonly a_Position = this.vertChunk.bindings.a_Position;
