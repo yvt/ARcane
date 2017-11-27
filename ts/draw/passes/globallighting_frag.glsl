@@ -8,6 +8,7 @@
 // exports
 #pragma global v_TexCoord
 #pragma global v_CameraTexCoord
+#pragma global u_DepthRange
 
 // imports
 #pragma global ENABLE_AR
@@ -22,6 +23,8 @@ varying highp vec2 v_TexCoord;
 varying highp vec2 v_CameraTexCoord;
 #endif
 
+uniform highp vec2 u_DepthRange;
+
 void main() {
     mediump vec3 scene_color = vec3(0.1, 0.12, 0.2);
     mediump vec3 floor_color = (scene_color + 0.05) * 0.8;
@@ -33,7 +36,7 @@ void main() {
     // Fetch GBuffer 1
     mediump vec4 g1 = texture2D(g1Texture, v_TexCoord);
 
-    if (g1.x == 0.0) {
+    if (g1.x == u_DepthRange.y) {
         // Render the background (gradient)
 #if ENABLE_AR
         gl_FragColor = vec4(camera_image, 1.0);

@@ -121,6 +121,8 @@ class RaytraceOperator implements RenderOperator
         mat4.mul(params.viewProjMat, scene.projectionMatrix, scene.viewMatrix);
         mat4.invert(params.invViewProjMat, params.viewProjMat);
         params.voxelData.voxelData = voxel;
+        params.depthNear = scene.depthNear;
+        params.depthFar = scene.depthFar;
 
         context.framebuffer = this.framebuffer;
         context.states = GLStateFlags.Default;
@@ -144,12 +146,15 @@ interface RaytraceShaderParam
     viewProjMat: mat4;
     invViewProjMat: mat4;
     voxelData: VoxelDataShaderParam;
+    depthNear: number;
+    depthFar: number;
 }
 
 class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, RaytraceShaderParam>
 {
     private readonly fragChunk = new PieShaderChunk<{
         u_ViewProjMat: string;
+        u_DepthRange: string;
         v_RayStart: string;
         v_RayEnd: string;
         fetchVoxelDensity: string;
@@ -157,6 +162,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
     private readonly vertChunk = new PieShaderChunk<{
         a_Position: string;
         u_InvViewProjMat: string;
+        u_DepthRange: string;
         v_RayStart: string;
         v_RayEnd: string;
     }>(raytraceVertModule);
@@ -164,6 +170,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
     readonly a_Position = this.vertChunk.bindings.a_Position;
     readonly u_InvViewProjMat = this.vertChunk.bindings.u_InvViewProjMat;
     readonly u_ViewProjMat = this.fragChunk.bindings.u_ViewProjMat;
+    readonly u_DepthRange = this.fragChunk.bindings.u_DepthRange;
 
     readonly voxelData: VoxelDataShaderObject;
 
@@ -197,6 +204,7 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
     readonly a_Position: number;
     readonly u_InvViewProjMat: WebGLUniformLocation;
     readonly u_ViewProjMat: WebGLUniformLocation;
+    readonly u_DepthRange: WebGLUniformLocation;
 
     private readonly voxelData: VoxelDataShaderInstance;
 
@@ -208,6 +216,7 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
         this.a_Position = gl.getAttribLocation(builder.program.handle, parent.a_Position);
         this.u_InvViewProjMat = gl.getUniformLocation(builder.program.handle, parent.u_InvViewProjMat)!;
         this.u_ViewProjMat = gl.getUniformLocation(builder.program.handle, parent.u_ViewProjMat)!;
+        this.u_DepthRange = gl.getUniformLocation(builder.program.handle, parent.u_DepthRange)!;
 
         this.voxelData = builder.getUnwrap(parent.voxelData);
     }
@@ -218,6 +227,8 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
             viewProjMat: mat4.create(),
             invViewProjMat: mat4.create(),
             voxelData: builder.getUnwrap(this.voxelData),
+            depthNear: 0,
+            depthFar: 0,
         };
     }
 
@@ -227,6 +238,7 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
 
         gl.uniformMatrix4fv(this.u_InvViewProjMat, false, param.invViewProjMat);
         gl.uniformMatrix4fv(this.u_ViewProjMat, false, param.viewProjMat);
+        gl.uniform2f(this.u_DepthRange, param.depthNear, param.depthFar);
     }
 }
 

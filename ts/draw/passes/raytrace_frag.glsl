@@ -9,6 +9,7 @@
 #pragma global v_RayStart
 #pragma global v_RayEnd
 #pragma global u_ViewProjMat
+#pragma global u_DepthRange
 
 // imports
 #pragma global fetchVoxelDensity
@@ -19,6 +20,7 @@
 #pragma global antialiasedHatch
 
 uniform highp mat4 u_ViewProjMat;
+uniform highp vec2 u_DepthRange;
 
 varying highp vec4 v_RayStart;
 varying highp vec4 v_RayEnd;
@@ -191,7 +193,7 @@ void main() {
             gl_FragColor.z = -1.0;
         } else {
             // Sky
-            gl_FragColor = vec4(0.0, rayDir);
+            gl_FragColor = vec4(u_DepthRange.y, rayDir);
 
             // Skip Z value computation (since there is no actual ray intersection)
             return;

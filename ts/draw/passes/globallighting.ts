@@ -149,6 +149,8 @@ class GlobalLightingOperator implements RenderOperator
         params.voxelData.voxelData = voxel;
         params.g1Texture.texture = this.g1.texture;
         params.ssaoTexture.texture = this.ssao.texture;
+        params.depthNear = scene.depthNear;
+        params.depthFar = scene.depthFar;
 
         if (this.enableAR) {
             params.cameraTexture!.texture = cameraImage.texture;
@@ -181,6 +183,8 @@ interface GlobalLightingShaderParam
     readonly g1Texture: TextureShaderParameter;
     readonly ssaoTexture: TextureShaderParameter;
     readonly cameraTexture: TextureShaderParameter | null;
+    depthNear: number;
+    depthFar: number;
 }
 
 class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstance, GlobalLightingShaderParam>
@@ -188,6 +192,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
     private readonly fragChunk = new PieShaderChunk<{
         ENABLE_AR: string;
         v_TexCoord: string;
+        u_DepthRange: string;
         g1Texture: string;
         ssaoTexture: string;
         cameraTexture: string;
@@ -202,6 +207,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
 
     readonly a_Position = this.vertChunk.bindings.a_Position;
     readonly u_CameraTexMatrix = this.vertChunk.bindings.u_CameraTexMatrix;
+    readonly u_DepthRange = this.fragChunk.bindings.u_DepthRange;
 
     readonly g1Texture: Texture2DShaderObject;
     readonly ssaoTexture: Texture2DShaderObject;
@@ -254,6 +260,7 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
     private readonly voxelData: VoxelDataShaderInstance;
 
     private readonly u_CameraTexMatrix: WebGLUniformLocation | null;
+    private readonly u_DepthRange: WebGLUniformLocation | null;
 
     constructor(builder: ShaderInstanceBuilder, parent: GlobalLightingShaderModule)
     {
@@ -262,6 +269,7 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
         const {gl} = builder.context;
         this.a_Position = gl.getAttribLocation(builder.program.handle, parent.a_Position);
         this.u_CameraTexMatrix = gl.getUniformLocation(builder.program.handle, parent.u_CameraTexMatrix);
+        this.u_DepthRange = gl.getUniformLocation(builder.program.handle, parent.u_DepthRange);
 
         this.g1Texture = builder.getUnwrap(parent.g1Texture);
         this.ssaoTexture = builder.getUnwrap(parent.ssaoTexture);
@@ -279,6 +287,8 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
             g1Texture: builder.getUnwrap(this.g1Texture),
             ssaoTexture: builder.getUnwrap(this.ssaoTexture),
             cameraTexture: this.cameraTexture && builder.getUnwrap(this.cameraTexture),
+            depthNear: 0,
+            depthFar: 0,
         };
     }
 
@@ -288,6 +298,7 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
         if (this.u_CameraTexMatrix) {
             gl.uniformMatrix4fv(this.u_CameraTexMatrix, false, param.cameraTextureMat);
         }
+        gl.uniform2f(this.u_DepthRange, param.depthNear, param.depthFar);
     }
 }
 
