@@ -14,7 +14,7 @@
 #pragma global g1Texture
 #pragma global ssaoTexture
 #pragma global cameraTexture
-#pragma global fetchVoxelData
+#pragma global fetchVoxelDensity
 
 varying highp vec2 v_TexCoord;
 
@@ -62,14 +62,14 @@ void main() {
 
     // Derive the normal using the partial derivatives
     mediump vec3 neighbor1 = vec3(
-        fetchVoxelData(hitVoxel + vec3(1.0, 0.0, 0.0), 0.0),
-        fetchVoxelData(hitVoxel + vec3(0.0, 1.0, 0.0), 0.0),
-        fetchVoxelData(hitVoxel + vec3(0.0, 0.0, 1.0), 0.0)
+        fetchVoxelDensity(hitVoxel + vec3(1.0, 0.0, 0.0), 0.0),
+        fetchVoxelDensity(hitVoxel + vec3(0.0, 1.0, 0.0), 0.0),
+        fetchVoxelDensity(hitVoxel + vec3(0.0, 0.0, 1.0), 0.0)
     );
     mediump vec3 neighbor2 = vec3(
-        fetchVoxelData(hitVoxel - vec3(1.0, 0.0, 0.0), 0.0),
-        fetchVoxelData(hitVoxel - vec3(0.0, 1.0, 0.0), 0.0),
-        fetchVoxelData(hitVoxel - vec3(0.0, 0.0, 1.0), 0.0)
+        fetchVoxelDensity(hitVoxel - vec3(1.0, 0.0, 0.0), 0.0),
+        fetchVoxelDensity(hitVoxel - vec3(0.0, 1.0, 0.0), 0.0),
+        fetchVoxelDensity(hitVoxel - vec3(0.0, 0.0, 1.0), 0.0)
     );
     mediump vec3 normal = normalize(neighbor2 - neighbor1);
 

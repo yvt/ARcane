@@ -152,7 +152,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
         u_ViewProjMat: string;
         v_RayStart: string;
         v_RayEnd: string;
-        fetchVoxelData: string;
+        fetchVoxelDensity: string;
     }>(raytraceFragModule);
     private readonly vertChunk = new PieShaderChunk<{
         a_Position: string;
@@ -175,7 +175,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
 
         this.fragChunk.bind({
             // child object
-            fetchVoxelData: this.voxelData.fetchVoxelData,
+            fetchVoxelDensity: this.voxelData.fetchVoxelDensity,
         });
         this.vertChunk.inherit(this.fragChunk);
 

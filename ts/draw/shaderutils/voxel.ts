@@ -20,27 +20,35 @@ import { VoxelData } from '../voxeldata';
 
 import { PieShaderModule, PieShaderChunk } from '../shadertk/pieglsl';
 const voxelDataModule: PieShaderModule = require('./voxeldata.glsl');
+const voxelCommonModule: PieShaderModule = require('./voxelcommon.glsl');
 const voxelCommonFragModule: PieShaderModule = require('./voxelcommon_frag.glsl');
 const voxelCommonVertModule: PieShaderModule = require('./voxelcommon_vert.glsl');
 
 export class VoxelDataShaderParam
 {
-    constructor(private densityTexture: TextureShaderParameter)
+    constructor(
+        private densityTexture: TextureShaderParameter,
+        private materialTexture: TextureShaderParameter,
+    )
     {
     }
 
     set voxelData(value: VoxelData)
     {
         this.densityTexture.texture = value.densityTex;
+        this.materialTexture.texture = value.materialTex;
     }
 }
 
 export class VoxelDataShaderObject extends ShaderObject<VoxelDataShaderInstance, VoxelDataShaderParam>
 {
     private readonly pieChunk = new PieShaderChunk<{
-        fetchVoxelData: string;
+        fetchVoxelDensity: string;
+        fetchVoxelMaterial: string;
         densityTextureSampler: string;
-        fetchVoxel: string;
+        materialTextureSampler: string;
+        fetchVoxelDensityCommon: string;
+        fetchVoxelMaterialCommon: string;
     }>(voxelDataModule);
 
     /**
@@ -56,9 +64,21 @@ export class VoxelDataShaderObject extends ShaderObject<VoxelDataShaderInstance,
      *  - `mediump float lod`: specifies the mip level (`0` = most detail).
      *    Must be an integral value.
      */
-    readonly fetchVoxelData = this.pieChunk.bindings.fetchVoxelData;
+    readonly fetchVoxelDensity = this.pieChunk.bindings.fetchVoxelDensity;
+
+    /**
+     * A shader function to fetch a material info from the associated voxel data.
+     *
+     * This function has the following parameters:
+     *
+     *  - `highp vec3 voxel`: specifies the integral coordinate of the voxel.
+     *
+     * Returns `mediump vec4`.
+     */
+    readonly fetchVoxelMaterial = this.pieChunk.bindings.fetchVoxelMaterial;
 
     readonly densityTexture: Texture2DShaderObject;
+    readonly materialTexture: Texture2DShaderObject;
     private commonModule: VoxelDataShaderModule;
 
     constructor(builder: ShaderBuilder)
@@ -67,10 +87,13 @@ export class VoxelDataShaderObject extends ShaderObject<VoxelDataShaderInstance,
 
         this.commonModule = builder.requireModule(VoxelDataShaderModuleFactory);
         this.densityTexture = new Texture2DShaderObject(builder, 'mediump');
+        this.materialTexture = new Texture2DShaderObject(builder, 'mediump');
 
         this.pieChunk.bind({
-            fetchVoxel: this.commonModule.fetchVoxel,
+            fetchVoxelDensityCommon: this.commonModule.fetchVoxelDensity,
+            fetchVoxelMaterialCommon: this.commonModule.fetchVoxelMaterial,
             densityTextureSampler: this.densityTexture.u_Texture,
+            materialTextureSampler: this.materialTexture.u_Texture,
         });
 
         this.register();
@@ -78,6 +101,9 @@ export class VoxelDataShaderObject extends ShaderObject<VoxelDataShaderInstance,
 
     /** Provides a direct access to the contained density texture of type `sampler2D`. */
     get densityTextureSampler() { return this.densityTexture.u_Texture; }
+
+    /** Provides a direct access to the contained material texture of type `sampler2D`. */
+    get materialTextureSampler() { return this.materialTexture.u_Texture; }
 
     createInstance(builder: ShaderInstanceBuilder): VoxelDataShaderInstance
     {
@@ -90,17 +116,19 @@ export class VoxelDataShaderObject extends ShaderObject<VoxelDataShaderInstance,
 export class VoxelDataShaderInstance extends ShaderObjectInstance<VoxelDataShaderParam>
 {
     private densityTexture: Texture2DShaderInstance;
+    private materialTexture: Texture2DShaderInstance;
 
     constructor(builder: ShaderInstanceBuilder, parent: VoxelDataShaderObject)
     {
         super(builder);
 
         this.densityTexture = builder.getUnwrap(parent.densityTexture);
+        this.materialTexture = builder.getUnwrap(parent.materialTexture);
     }
 
     createParameter(builder: ShaderParameterBuilder): VoxelDataShaderParam
     {
-        return new VoxelDataShaderParam(builder.getUnwrap(this.densityTexture));
+        return new VoxelDataShaderParam(builder.getUnwrap(this.densityTexture), builder.getUnwrap(this.materialTexture));
     }
 
     apply(param: VoxelDataShaderParam)
@@ -112,23 +140,30 @@ const VoxelDataShaderModuleFactory = (builder: ShaderBuilder) => new VoxelDataSh
 
 class VoxelDataShaderModule extends ShaderModule<any, {}>
 {
+    private readonly pieChunk = new PieShaderChunk<{
+        fetchVoxelMaterial: string;
+    }>(voxelCommonModule);
     private readonly fragChunk = new PieShaderChunk<{
-        fetchVoxel: string;
+        fetchVoxelDensity: string;
     }>(voxelCommonFragModule);
     private readonly vertChunk = new PieShaderChunk<{
-        fetchVoxel: string;
+        fetchVoxelDensity: string;
     }>(voxelCommonVertModule);
 
-    readonly fetchVoxel = this.fragChunk.bindings.fetchVoxel;
+    readonly fetchVoxelDensity = this.fragChunk.bindings.fetchVoxelDensity;
+    readonly fetchVoxelMaterial = this.pieChunk.bindings.fetchVoxelMaterial;
 
     constructor(builder: ShaderBuilder)
     {
         super(builder);
 
         this.vertChunk.inherit(this.fragChunk);
+        this.pieChunk.inherit(this.fragChunk);
 
         this.register();
     }
+
+    emit() { return this.pieChunk.emit(); }
 
     emitFrag() { return this.fragChunk.emit(); }
 

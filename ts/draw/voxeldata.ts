@@ -52,6 +52,9 @@ export const enum Layout
 assertEq(Layout.SIZE, GRID_SIZE);
 assertEq(Layout.D1 * Layout.D2, GRID_SIZE);
 
+// We only support little endian systems
+assertEq(new Uint32Array(new Uint8Array([1, 2, 3, 4]).buffer)[0], 0x04030201);
+
 export interface VoxelDataContext
 {
     readonly context: GLContext;
@@ -77,6 +80,7 @@ export class VoxelDataManager implements IDisposable
 export abstract class VoxelData implements IDisposable
 {
     densityTex: WebGLTexture;
+    materialTex: WebGLTexture;
 
     abstract dispose(): void;
     abstract updateFrom(workDataVersion: WorkDataVersion): void;
@@ -85,6 +89,8 @@ export abstract class VoxelData implements IDisposable
 class VoxelDataImpl extends VoxelData
 {
     private densityData: Uint8Array[] = [];
+    private materialData = new Uint32Array(Layout.SIZE * Layout.D1 * Layout.SIZE * Layout.D2);
+    private materialDataBytes: Uint8Array;
 
     constructor(private readonly context: VoxelDataContext)
     {
@@ -119,6 +125,25 @@ class VoxelDataImpl extends VoxelData
             const height = Layout.D2 * size;
             this.densityData.push(new Uint8Array(width * height));
         }
+
+        this.materialTex = gl.createTexture()!;
+        gl.bindTexture(GLConstants.TEXTURE_2D, this.materialTex);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.NEAREST);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.NEAREST);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_S, GLConstants.REPEAT);
+        gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.REPEAT);
+        gl.texImage2D(
+            GLConstants.TEXTURE_2D,
+            0,
+            GLConstants.RGBA,
+            Layout.SIZE * Layout.D1,
+            Layout.SIZE * Layout.D2,
+            0,
+            GLConstants.RGBA,
+            GLConstants.UNSIGNED_BYTE,
+            null
+        );
+        this.materialDataBytes = new Uint8Array(this.materialData.buffer);
     }
 
     /** Used by `updateFrom`. */
@@ -163,12 +188,61 @@ class VoxelDataImpl extends VoxelData
         }
         this.lastVersion = workDataVersion;
 
+        const {gl} = this.context.context;
+
+        // Update the material texture
+        const {materialTex, materialData, materialDataBytes} = this;
+        const {material} = data;
+
+        for (let startY = 0; startY < Layout.SIZE;) {
+            // Find the successive dirty rows
+            let endY: number;
+            startY = findOneInBitArray(dirtyLines, startY);
+            if (startY < 0) {
+                break;
+            }
+            endY = findZeroInBitArray(dirtyLines, startY);
+            if (endY < 0) {
+                endY = Layout.SIZE;
+            }
+
+            // Copy from `WorkData.material` (with swizzling)
+            let outIndex = startY << Layout.LOG_D1 + Layout.LOG_D2 + Layout.LOG_SIZE;
+            for (let y = startY; y < endY; ++y) {
+                let inIndex = y << Layout.LOG_SIZE;
+                for (let z = 0; z < Layout.SIZE; ++z) {
+                    let inIndex2 = inIndex;
+                    for (let x = 0; x < Layout.SIZE; ++x) {
+                        materialData[outIndex++] = material[inIndex2++];
+                    }
+                    inIndex += 1 << Layout.LOG_SIZE * 2;
+                }
+            }
+
+            // Record a copy command
+            gl.texSubImage2D(
+                GLConstants.TEXTURE_2D,
+                0,
+                0,
+                startY << Layout.LOG_D2,
+                Layout.SIZE * Layout.D1,
+                (endY - startY) << Layout.LOG_D2,
+                GLConstants.RGBA,
+                GLConstants.UNSIGNED_BYTE,
+                materialDataBytes.subarray(
+                    startY << Layout.LOG_D1 + Layout.LOG_D2 + Layout.LOG_SIZE + 2,
+                    endY << Layout.LOG_D1 + Layout.LOG_D2 + Layout.LOG_SIZE + 2,
+                ),
+            );
+
+            startY = endY;
+        }
+
+        // Update each mip level of the density texture
         const {densityTex, densityData} = this;
         const {density} = data;
-        const {gl} = this.context.context;
-        gl.bindTexture(GLConstants.TEXTURE_2D, this.densityTex);
+        gl.bindTexture(GLConstants.TEXTURE_2D, densityTex);
 
-        // Update each mip level
         for (let i = 0; i <= Layout.LOG_SIZE; ++i) {
             const densCur = densityData[i];
             for (let startY = 0; startY < Layout.SIZE;) {

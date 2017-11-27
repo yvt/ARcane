@@ -11,7 +11,7 @@
 #pragma global u_ViewProjMat
 
 // imports
-#pragma global fetchVoxelData
+#pragma global fetchVoxelDensity
 
 // private
 #pragma global clipRay
@@ -88,7 +88,7 @@ bool voxelTrace(
         /// "voxel" rounded according to the current mip level
         mediump vec3 voxelRounded = voxelRoundedB * mipScale;
 
-        mediump float dens = fetchVoxelData(vec3(voxelRounded.xy, voxelRoundedB.z), mip);
+        mediump float dens = fetchVoxelDensity(vec3(voxelRounded.xy, voxelRoundedB.z), mip);
         if (dens > 0.5) {
             if (mip <= 0.0) {
                 hitVoxel = floor(voxel);

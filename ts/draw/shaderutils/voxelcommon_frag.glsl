@@ -6,9 +6,9 @@
  */
 
 // exports
-#pragma global fetchVoxel
+#pragma global fetchVoxelDensity
 
-mediump float fetchVoxel(mediump sampler2D tex, highp vec3 voxel, mediump float lod) {
+mediump float fetchVoxelDensity(mediump sampler2D tex, highp vec3 voxel, mediump float lod) {
     highp float mipScale = exp2(lod);
     highp vec2 mapped =
         voxel.xy * vec2(1.0 / 4096.0, 1.0 / 256.0) +

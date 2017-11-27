@@ -155,6 +155,22 @@ export class WorkData
      */
     readonly density = new Uint8Array(GRID_SIZE * GRID_SIZE * GRID_SIZE);
 
+    /**
+     * The color/material map, stored in the x-major order.
+     *
+     * Each element `e` is a bit field composed as following:
+     *
+     *  - `e[7:0]` - The red component of the base color, encoded in the
+     *    non-linear sRGB color space.
+     *  - `e[15:8]` - The green component of the base color, encoded in the
+     *    non-linear sRGB color space.
+     *  - `e[23:16]` - The blue component of the base color, encoded in the
+     *    non-linear sRGB color space.
+     *  - `e[27:24]` - Roughness.
+     *  - `e[31:28]` - Metalness.
+     */
+    readonly material = new Uint32Array(GRID_SIZE * GRID_SIZE * GRID_SIZE);
+
     readonly mapIndex = mapIndex;
 }
 

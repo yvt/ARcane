@@ -191,7 +191,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
         g1Texture: string;
         ssaoTexture: string;
         cameraTexture: string;
-        fetchVoxelData: string;
+        fetchVoxelDensity: string;
     }>(globalLightingFragModule);
     private readonly vertChunk = new PieShaderChunk<{
         ENABLE_AR: string;
@@ -224,7 +224,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
             g1Texture: this.g1Texture.u_Texture,
             ssaoTexture: this.ssaoTexture.u_Texture,
             cameraTexture: (this.cameraTexture && this.cameraTexture.u_Texture) || '',
-            fetchVoxelData: this.voxelData.fetchVoxelData,
+            fetchVoxelDensity: this.voxelData.fetchVoxelDensity,
 
             // static parameters
             ENABLE_AR: String(flags & ShaderFlags.ENABLE_AR),
