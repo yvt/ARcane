@@ -184,9 +184,6 @@ interface SsaoShaderParam
 class SsaoShaderModule extends ShaderModule<SsaoShaderInstance, SsaoShaderParam>
 {
     private readonly fragChunk = new PieShaderChunk<{
-        v_TexCoord: string;
-        v_VSPosBase: string;
-        v_DitherTexCoord: string;
         u_ProjMat: string;
         u_InvProjMat: string;
         u_TSPixelOffset: string;
@@ -197,9 +194,6 @@ class SsaoShaderModule extends ShaderModule<SsaoShaderInstance, SsaoShaderParam>
         PI: string;
     }>(fragModule);
     private readonly vertChunk = new PieShaderChunk<{
-        v_TexCoord: string;
-        v_VSPosBase: string;
-        v_DitherTexCoord: string;
         u_InvProjMat: string;
         u_DitherTexCoordFactor: string;
         a_Position: string;

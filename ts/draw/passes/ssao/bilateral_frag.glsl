@@ -6,8 +6,10 @@
  */
 
 // exports
-#pragma global v_TexCoord       // varying highp vec2
 #pragma global u_TSSweepOffset  // uniform highp vec2
+
+// varyings
+#pragma global v_TexCoord       // varying highp vec2
 
 // imports
 #pragma global g1Texture        // (highp vec2) -> mediump vec4

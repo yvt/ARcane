@@ -162,13 +162,11 @@ interface BilateralShaderParam
 class BilateralShaderModule extends ShaderModule<BilateralShaderInstance, BilateralShaderParam>
 {
     private readonly fragChunk = new PieShaderChunk<{
-        v_TexCoord: string;
         u_TSSweepOffset: string;
         g1Texture: string;
         inputTexture: string;
     }>(fragModule);
     private readonly vertChunk = new PieShaderChunk<{
-        v_TexCoord: string;
         a_Position: string;
     }>(vertModule);
 

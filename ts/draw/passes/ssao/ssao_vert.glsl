@@ -6,12 +6,14 @@
  */
 
 // exports
-#pragma global v_TexCoord               // varying highp vec2
-#pragma global v_VSPosBase              // varying highp vec4
-#pragma global v_DitherTexCoord         // varying highp vec4
 #pragma global u_InvProjMat             // uniform highp mat4
 #pragma global u_DitherTexCoordFactor   // uniform highp vec2
 #pragma global a_Position               // attribute highp vec2
+
+// varyings
+#pragma global v_TexCoord               // varying highp vec2
+#pragma global v_VSPosBase              // varying highp vec4
+#pragma global v_DitherTexCoord         // varying highp vec4
 
 attribute highp vec2 a_Position;
 

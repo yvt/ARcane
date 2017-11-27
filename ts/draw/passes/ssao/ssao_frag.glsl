@@ -6,13 +6,15 @@
  */
 
 // exports
-#pragma global v_TexCoord               // varying highp vec2
-#pragma global v_VSPosBase              // varying highp vec4
-#pragma global v_DitherTexCoord         // varying highp vec4
 #pragma global u_ProjMat                // uniform highp mat4
 #pragma global u_InvProjMat             // uniform highp mat4
 #pragma global u_TSPixelOffset          // uniform highp vec2
 #pragma global u_TSSampleOffsetFactor   // uniform highp vec2
+
+// varyings
+#pragma global v_TexCoord               // varying highp vec2
+#pragma global v_VSPosBase              // varying highp vec4
+#pragma global v_DitherTexCoord         // varying highp vec4
 
 // imports
 #pragma global g1Texture        // (highp vec2) -> mediump vec4
