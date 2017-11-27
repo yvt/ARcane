@@ -157,7 +157,7 @@ export class WorkerHost extends Host
 {
     constructor()
     {
-        super(2);
+        super(1);
         onmessage = (e) => {
             this.onMessage(e.data);
         };
