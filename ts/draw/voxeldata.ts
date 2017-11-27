@@ -193,6 +193,7 @@ class VoxelDataImpl extends VoxelData
         // Update the material texture
         const {materialTex, materialData, materialDataBytes} = this;
         const {material} = data;
+        gl.bindTexture(GLConstants.TEXTURE_2D, materialTex);
 
         for (let startY = 0; startY < Layout.SIZE;) {
             // Find the successive dirty rows
