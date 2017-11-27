@@ -49,6 +49,7 @@ export function createEditorState(): EditorState
         ... work,
         data: work.data.mutate(context => {
             const dens = context.data.density;
+            const mat = context.data.material;
 
             for (let z = 0; z < 256; ++z) {
                 for (let y = 0; y < 256; ++y) {
@@ -60,6 +61,10 @@ export function createEditorState(): EditorState
                         v = Math.max(Math.min(v * 255 | 0, 255), 0);
 
                         dens[mapIndex(x, y, z)] = v;
+
+                        const gloss = 8;
+                        const metalness = 0;
+                        mat[mapIndex(x, y, z)] = 0x604030 | (gloss << 24) | (metalness << 28);
                     }
                 }
             }

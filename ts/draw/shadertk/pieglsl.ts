@@ -92,13 +92,13 @@ function decompressSourceCode(code: string, identifierMap: string[]): string
         if (charCode < 0x200) {
             const kId = charCode - 0x80;
             if (kId > glslCompressedKeywords.length) {
-                throw new Error(`Invalid keyword ID ${kId} was found.`);
+                return matched;
             }
             return glslCompressedKeywords[kId];
         } else {
             const iId = charCode - 0x200;
             if (iId > identifierMap.length) {
-                throw new Error(`Invalid identifier ID ${iId} was found.`);
+                return matched;
             }
             return identifierMap[iId];
         }
