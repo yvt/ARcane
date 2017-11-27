@@ -15,6 +15,7 @@ import { RaytraceHit, raytrace } from '../model/raytrace';
 
 import { Renderer } from '../draw/main';
 import { LineGizmo, LineStyle } from '../draw/model';
+import { ProfilerResult } from '../draw/profiler';
 import { createWorkerClient } from '../workerclient';
 
 import { EditorState, CameraState, DisplayMode, CameraStateInfo } from './editorstate';
@@ -24,16 +25,11 @@ import { ARMain } from '../xr/main';
 
 const classNames = require('./viewport.less');
 
-// DEBUG: stats.js for easy frame rate monitoring
-const stats = new Stats();
-stats.setMode(0);
-stats.domElement.className = classNames.stats;
-document.body.appendChild(stats.domElement);
-
 export interface ViewportPersistentListener
 {
     readonly editorState: EditorState;
     readonly actualDisplayMode: DisplayMode;
+    readonly profilingEnabled: boolean;
 
     /**
      * Notifies that the viewport must be re-rendered due to a change in the internal
@@ -42,6 +38,27 @@ export interface ViewportPersistentListener
     handleNeedsUpdate(): void;
     handleInputDeviceDetected(type: 'mouse' | 'touch'): void;
     handleEditorStateUpdate(trans: (oldState: EditorState) => EditorState): void;
+}
+
+// DEBUG: stats.js for easy frame rate monitoring
+const stats = new Stats();
+stats.setMode(0);
+stats.domElement.className = classNames.stats;
+document.body.appendChild(stats.domElement);
+
+let profilerWindow: HTMLDivElement | null = null;
+
+function getProfilerCallback(): (result: ProfilerResult) => void
+{
+    if (!profilerWindow) {
+        profilerWindow = document.createElement('div');
+        profilerWindow.className = classNames.profiler;
+        document.body.appendChild(profilerWindow);
+    }
+
+    return (result) => {
+        profilerWindow!.innerText = result.formatted;
+    };
 }
 
 interface MouseGrabState
@@ -67,6 +84,7 @@ export class ViewportPersistent implements IDisposable
     // # Rendering
     private readonly context: WebGLRenderingContext;
     private readonly renderer: Renderer;
+    private profilingEnabled = false;
     private numRenderedFrames = 0;
 
     private smoothedCamera: CameraState | null;
@@ -283,6 +301,18 @@ export class ViewportPersistent implements IDisposable
         } else {
             canvas.width = newWidth;
             canvas.height = newHeight;
+        }
+
+        // Enable profiling if requested
+        if (this.profilingEnabled != this.listener.profilingEnabled) {
+            if (this.listener.profilingEnabled) {
+                renderer.startProfiling(getProfilerCallback());
+                profilerWindow!.style.display = 'block';
+            } else {
+                renderer.stopProfiling();
+                profilerWindow!.style.display = 'none';
+            }
+            this.profilingEnabled = this.listener.profilingEnabled;
         }
 
         stats.begin();

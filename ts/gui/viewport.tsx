@@ -36,6 +36,9 @@ export interface State
     arPlaying: boolean;
 
     actualDisplayMode: DisplayMode;
+
+    /** Can be manipulated only via the React developer tools. */
+    profilingEnabled: boolean;
 }
 
 export class Viewport extends React.Component<ViewportProps, State> implements ViewportPersistentListener
@@ -54,6 +57,7 @@ export class Viewport extends React.Component<ViewportProps, State> implements V
             arState: ARState.Inactive,
             arPlaying: false,
             actualDisplayMode: props.editorState.displayMode,
+            profilingEnabled: false,
         };
     }
 
@@ -153,6 +157,9 @@ export class Viewport extends React.Component<ViewportProps, State> implements V
 
     /// Required to implement `ViewportPersistentListener`
     get actualDisplayMode(): DisplayMode { return this.state.actualDisplayMode; }
+
+    /// Required to implement `ViewportPersistentListener`
+    get profilingEnabled(): boolean { return this.state.profilingEnabled; }
 
     @bind
     private update(): void

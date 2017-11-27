@@ -36,6 +36,7 @@ export interface ProfilerPhase
 export interface ProfilerResult
 {
     phases: ProfilerPhase[];
+    formatted: string;
 }
 
 export class Profiler
@@ -99,7 +100,7 @@ export class Profiler
         this.queries = [];
     }
 
-    startProfiling(callback: (result: ProfilerResult) => void): void
+    startProfiling(callback?: (result: ProfilerResult) => void): void
     {
         if (this.state == State.Inactive) {
             if (!this.ext) {
@@ -109,7 +110,7 @@ export class Profiler
 
             this.state = State.Profiling;
         }
-        this.callback = callback;
+        this.callback = callback || null;
     }
 
     stopProfiling(): void
@@ -172,12 +173,8 @@ export class Profiler
         }
         traverse(root, 0, true);
 
-        const result: ProfilerResult = {
-            phases: resultPhases
-        };
-
         const colLen = [40, 10, 20];
-        this.logger.warn("Profiling done. \n" +
+        const formatted =
             `| ${fillWith("Phase", colLen[0], " ")} | ${fillWithRightAligned("Time", colLen[1], " ")} | ${stringRepeat(" ", colLen[2])} |\n` +
             `| ${stringRepeat("-", colLen[0])} | ${stringRepeat("-", colLen[1])} | ${stringRepeat("-", colLen[2])} |\n` +
             resultPhases.map((phase) => {
@@ -186,10 +183,17 @@ export class Profiler
                 const bar = Math.min(Math.ceil(phase.time / 1500000 * colLen[2]), colLen[2]);
                 return `| ${fillWith(name, colLen[0], " ")} | ${fillWithRightAligned(timeStr, colLen[1], " ")} | ` +
                     `${fillWith(stringRepeat("▓", bar), colLen[2], "░")} |`;
-            }).join("\n"));
+            }).join("\n");
+
+        const result: ProfilerResult = {
+            phases: resultPhases,
+            formatted,
+        };
 
         if (this.callback) {
             this.callback(result);
+        } else {
+            this.logger.warn("Profiling done. \n" + result.formatted);
         }
     }
 
@@ -215,7 +219,7 @@ export class Profiler
         }
 
         if (this.activePhases.length > 1) {
-            throw new Error("Unmatched Profiler.begin/end. Too many begins.");
+            throw new Error("Unmatched Profiler.begin/end. Too many 'begin's.");
         }
         const root = this.activePhases[0];
         this.end();

@@ -70,3 +70,17 @@
     left: constant(safe-area-inset-left);
     pointer-events: none;
 }
+
+.profiler {
+    position: fixed;
+    left: 0; top: 48px; opacity: 0.5 !important;
+    left: constant(safe-area-inset-left);
+    background: rgba(0, 0, 0, 0.5);
+    font-size: 9px;
+    font-family: monospace;
+    color: white;
+    line-height: 1;
+    white-space: pre;
+    pointer-events: none;
+    will-change: contents;
+}

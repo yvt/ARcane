@@ -5,7 +5,7 @@
  * comes with the source code for use conditions.
  */
 import { LogManager } from "../utils/logger";
-import { Profiler } from "./profiler";
+import { Profiler, ProfilerResult } from "./profiler";
 import { RenderPipeline, RenderOperation, dumpRenderOperationAsDot } from "./scheduler";
 import { GLContext } from "./globjs/context";
 import { TOPICS } from "./log";
@@ -152,5 +152,15 @@ export class Renderer
         this.profiler.beginFrame();
         this.pipeline.render();
         this.profiler.finalizeFrame();
+    }
+
+    startProfiling(callback?: (result: ProfilerResult) => void): void
+    {
+        this.profiler.startProfiling(callback);
+    }
+
+    stopProfiling(): void
+    {
+        this.profiler.stopProfiling();
     }
 }
