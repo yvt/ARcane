@@ -705,5 +705,8 @@ export const enum GLConstants
     TIMEOUT_IGNORED                              = -1,
 
     /* WebGL-specific enums */
-    MAX_CLIENT_WAIT_TIMEOUT_WEBGL                 = 0x9247
+    MAX_CLIENT_WAIT_TIMEOUT_WEBGL                 = 0x9247,
+
+    /* EXT_sRGB */
+    SRGB_ALPHA_EXT                                = 0x8C42,
 }

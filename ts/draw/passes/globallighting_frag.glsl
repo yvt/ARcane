@@ -24,6 +24,9 @@
 #pragma global fetchVoxelMaterial
 #pragma global PI
 
+// private
+#pragma global fetchEnvImage
+
 varying highp vec2 v_TexCoord;
 varying highp vec3 v_WSView;
 
@@ -43,11 +46,12 @@ void main() {
     mediump vec3 camera_image = texture2D(cameraTexture, v_CameraTexCoord).xyz;
 
     // DEBUG
-    /* camera_image = textureCubeLodEXT(
+    /*
+    camera_image = sqrt(textureCubeLodEXT(
         envTexture,
         (u_WorldToEnvMatrix * vec4(normalize(v_WSView), 0.0)).xyz,
         0.0
-    ).xyz; // */
+    ).xyz); // */
 #endif
 
     // # Fetch GBuffer 1

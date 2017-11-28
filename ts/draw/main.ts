@@ -70,6 +70,9 @@ export class Renderer
         if (!this.context.ext.OES_standard_derivatives) {
             throw new Error("OES_standard_derivatives is not supported. Cannot proceed.");
         }
+        if (!this.context.ext.EXT_sRGB) {
+            throw new Error("EXT_sRGB is not supported. Cannot proceed.");
+        }
 
         this.voxelManager = new VoxelDataManager(this);
         this.voxel = this.voxelManager.createVoxelData();

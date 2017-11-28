@@ -43,16 +43,16 @@ export class EnvironmentEstimatorClient
         const {gl} = context.context;
         this.texture = gl.createTexture()!;
         gl.bindTexture(GLConstants.TEXTURE_CUBE_MAP, this.texture);
-        gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_MAG_FILTER, GLConstants.LINEAR);
-        gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_MIN_FILTER, GLConstants.LINEAR);
+        gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_MAG_FILTER, GLConstants.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_MIN_FILTER, GLConstants.LINEAR_MIPMAP_LINEAR);
         gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_WRAP_S, GLConstants.CLAMP_TO_EDGE);
         gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_WRAP_T, GLConstants.CLAMP_TO_EDGE);
 
         for (let i = 0; i <= LOG_SIZE; ++i) {
             for (let k = 0; k < 6; ++k) {
                 gl.texImage2D(GLConstants.TEXTURE_CUBE_MAP_POSITIVE_X + k, i,
-                    GLConstants.RGBA, SIZE >> i, SIZE >> i, 0,
-                    GLConstants.RGBA,
+                    GLConstants.SRGB_ALPHA_EXT, SIZE >> i, SIZE >> i, 0,
+                    GLConstants.SRGB_ALPHA_EXT,
                     GLConstants.UNSIGNED_BYTE,
                     null);
             }
@@ -89,7 +89,7 @@ export class EnvironmentEstimatorClient
                 for (let k = 0; k < 6; ++k) {
                     gl.texSubImage2D(GLConstants.TEXTURE_CUBE_MAP_POSITIVE_X + k, i,
                         0, 0, SIZE >> i, SIZE >> i,
-                        GLConstants.RGBA,
+                        GLConstants.SRGB_ALPHA_EXT,
                         GLConstants.UNSIGNED_BYTE,
                         u8.subarray(index));
                     index += ((SIZE >> i) ** 2) * 4;
