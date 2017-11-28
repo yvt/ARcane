@@ -114,9 +114,9 @@ export class ARActiveState
         return m;
     }
 
-    get lastProcessedImage(): HTMLCanvasElement
+    get lastProcessedImage(): ImageData | undefined
     {
-        return this.arController.canvas;
+        return this.arController.imageData;
     }
 
     get isPlaying(): boolean

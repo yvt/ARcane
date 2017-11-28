@@ -18,6 +18,8 @@ export class Scene
         [0, 1, 0],
     );
 
+    viewToEnvMatrix = mat4.identity(mat4.create());
+
     /**
      * Enables the AR mode. The camera image is displayed as the background.
      */
@@ -66,4 +68,11 @@ export class LineGizmo
     points: vec3[] = [];
     style = LineStyle.SOLID;
     closed = false;
+}
+
+export interface CameraImageData
+{
+    readonly data: Uint8Array;
+    readonly width: number;
+    readonly height: number;
 }

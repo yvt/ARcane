@@ -6,7 +6,7 @@
  */
 import { mat4 } from 'gl-matrix';
 
-import { downcast } from '../../utils/utils';
+import { downcast, table } from '../../utils/utils';
 
 import {
     TextureRenderBuffer,
@@ -44,16 +44,21 @@ export interface RaytraceContext
     readonly voxel: VoxelData;
 }
 
+const enum ShaderFlags
+{
+    SKIP_MODEL = 1 << 0,
+}
+
 export class RaytracePass
 {
-    shaderInstance: TypedShaderInstance<RaytraceShaderInstance, RaytraceShaderParam>;
+    shaderInstance: TypedShaderInstance<RaytraceShaderInstance, RaytraceShaderParam>[];
 
     constructor(public readonly context: RaytraceContext)
     {
-        this.shaderInstance = buildShaderTyped
+        this.shaderInstance = table(2, i => buildShaderTyped
             <RaytraceShaderModule, RaytraceShaderInstance, RaytraceShaderParam>
-            (builder => new RaytraceShaderModule(builder))
-            .compile(context.context);
+            (builder => new RaytraceShaderModule(builder, i))
+            .compile(context.context));
     }
 
     dispose(): void
@@ -85,7 +90,7 @@ export class RaytracePass
 
 class RaytraceOperator implements RenderOperator
 {
-    private shaderParams: TypedShaderParameter<RaytraceShaderParam>;
+    private shaderParams: TypedShaderParameter<RaytraceShaderParam>[];
     private framebuffer: GLFramebuffer;
 
     constructor(
@@ -93,7 +98,7 @@ class RaytraceOperator implements RenderOperator
         private g1: TextureRenderBuffer,
     )
     {
-        this.shaderParams = pass.shaderInstance.createParameter();
+        this.shaderParams = pass.shaderInstance.map(x => x.createParameter());
 
         this.framebuffer = GLFramebuffer.createFramebuffer(
             pass.context.context,
@@ -117,21 +122,31 @@ class RaytraceOperator implements RenderOperator
         const {context, quad, scene, voxel} = pass.context;
         const {gl} = context;
 
-        const params = this.shaderParams.root;
+        let flags: ShaderFlags = 0;
+        if (scene.skipScene) {
+            flags |= ShaderFlags.SKIP_MODEL;
+        }
+
+        const shaderInstance = pass.shaderInstance[flags];
+        const shaderParams = this.shaderParams[flags];
+        const params = shaderParams.root;
         mat4.mul(params.viewProjMat, scene.projectionMatrix, scene.viewMatrix);
         mat4.invert(params.invViewProjMat, params.viewProjMat);
         params.voxelData.voxelData = voxel;
         params.depthNear = scene.depthNear;
         params.depthFar = scene.depthFar;
 
+        if (scene.skipScene) {
+            params.depthNear = params.depthFar;
+        }
+
         context.framebuffer = this.framebuffer;
         context.states = GLStateFlags.Default;
         context.drawBuffers = GLDrawBufferFlags.Color0 | GLDrawBufferFlags.ColorRGBA;
         gl.viewport(0, 0, this.g1.width, this.g1.height);
 
-        const {shaderInstance} = pass;
         gl.useProgram(shaderInstance.program.handle);
-        shaderInstance.apply(this.shaderParams);
+        shaderInstance.apply(shaderParams);
 
         quad.render(shaderInstance.root.a_Position);
     }
@@ -156,6 +171,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
         u_ViewProjMat: string;
         u_DepthRange: string;
         fetchVoxelDensity: string;
+        SKIP_MODEL: string;
     }>(raytraceFragModule);
     private readonly vertChunk = new PieShaderChunk<{
         a_Position: string;
@@ -170,7 +186,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
 
     readonly voxelData: VoxelDataShaderObject;
 
-    constructor(builder: ShaderBuilder)
+    constructor(builder: ShaderBuilder, flags: ShaderFlags)
     {
         super(builder);
 
@@ -179,6 +195,9 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
         this.fragChunk.bind({
             // child object
             fetchVoxelDensity: this.voxelData.fetchVoxelDensity,
+
+            // static parameters
+            SKIP_MODEL: String(flags & ShaderFlags.SKIP_MODEL),
         });
         this.vertChunk.inherit(this.fragChunk);
 

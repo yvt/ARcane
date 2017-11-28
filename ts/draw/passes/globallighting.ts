@@ -20,6 +20,7 @@ import { QuadRenderer } from '../quad';
 import { Scene } from '../model';
 import { VoxelData } from '../voxeldata';
 import { CameraImage } from '../cameraimage';
+import { EnvironmentEstimatorClient } from '../worker/envestimator_client';
 
 import {
     ShaderModule, ShaderBuilder, ShaderModuleInstance,
@@ -37,7 +38,8 @@ import {
     VoxelDataShaderObject, VoxelDataShaderInstance, VoxelDataShaderParam
 } from '../shaderutils/voxel';
 import {
-    Texture2DShaderObject, Texture2DShaderInstance, TextureShaderParameter
+    Texture2DShaderObject, Texture2DShaderInstance, TextureShaderParameter,
+    TextureCubeShaderObject, TextureCubeShaderInstance,
 } from '../shaderutils/texture';
 import { ConstantsShaderModuleFactory } from '../shaderutils/constants';
 
@@ -48,6 +50,7 @@ export interface GlobalLightingContext
     readonly scene: Scene;
     readonly voxel: VoxelData;
     readonly cameraImage: CameraImage;
+    readonly environmentEstimator: EnvironmentEstimatorClient;
 }
 
 const enum ShaderFlags
@@ -156,7 +159,9 @@ class GlobalLightingOperator implements RenderOperator
         if (this.enableAR) {
             params.cameraTexture!.texture = cameraImage.texture;
             params.cameraTextureMat = scene.cameraTextureMatrix;
+            params.envTexture!.texture = pass.context.environmentEstimator.texture;
         }
+        mat4.multiply(params.worldToEnvMat, scene.viewToEnvMatrix, scene.viewMatrix);
 
         context.framebuffer = this.framebuffer;
         context.states = GLStateFlags.Default;
@@ -180,10 +185,12 @@ interface GlobalLightingShaderParam
     viewProjMat: mat4;
     invViewProjMat: mat4;
     cameraTextureMat: mat4;
+    worldToEnvMat: mat4;
     readonly voxelData: VoxelDataShaderParam;
     readonly g1Texture: TextureShaderParameter;
     readonly ssaoTexture: TextureShaderParameter;
     readonly cameraTexture: TextureShaderParameter | null;
+    readonly envTexture: TextureShaderParameter | null;
     depthNear: number;
     depthFar: number;
 }
@@ -193,9 +200,11 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
     private readonly fragChunk = new PieShaderChunk<{
         ENABLE_AR: string;
         u_DepthRange: string;
+        u_WorldToEnvMatrix: string;
         g1Texture: string;
         ssaoTexture: string;
         cameraTexture: string;
+        envTexture: string;
         fetchVoxelDensity: string;
         fetchVoxelMaterial: string;
         PI: string;
@@ -212,10 +221,12 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
     readonly u_CameraTexMatrix = this.vertChunk.bindings.u_CameraTexMatrix;
     readonly u_DepthRange = this.fragChunk.bindings.u_DepthRange;
     readonly u_InvViewProjMat = this.vertChunk.bindings.u_InvViewProjMat;
+    readonly u_WorldToEnvMatrix = this.fragChunk.bindings.u_WorldToEnvMatrix;
 
     readonly g1Texture: Texture2DShaderObject;
     readonly ssaoTexture: Texture2DShaderObject;
     readonly cameraTexture: Texture2DShaderObject | null = null;
+    readonly envTexture: TextureCubeShaderObject | null = null;
     readonly voxelData: VoxelDataShaderObject;
 
     constructor(builder: ShaderBuilder, flags: ShaderFlags)
@@ -226,6 +237,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
         this.ssaoTexture = new Texture2DShaderObject(builder, 'mediump');
         if (flags & ShaderFlags.ENABLE_AR) {
             this.cameraTexture = new Texture2DShaderObject(builder, 'mediump');
+            this.envTexture = new TextureCubeShaderObject(builder, 'mediump');
         }
         this.voxelData = new VoxelDataShaderObject(builder);
 
@@ -236,6 +248,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
             g1Texture: this.g1Texture.u_Texture,
             ssaoTexture: this.ssaoTexture.u_Texture,
             cameraTexture: (this.cameraTexture && this.cameraTexture.u_Texture) || '',
+            envTexture: (this.envTexture && this.envTexture.u_Texture) || '',
             fetchVoxelDensity: this.voxelData.fetchVoxelDensity,
             fetchVoxelMaterial: this.voxelData.fetchVoxelMaterial,
             PI: constants.PI,
@@ -265,11 +278,13 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
     private readonly g1Texture: Texture2DShaderInstance;
     private readonly ssaoTexture: Texture2DShaderInstance;
     private readonly cameraTexture: Texture2DShaderInstance | null;
+    private readonly envTexture: TextureCubeShaderInstance | null;
     private readonly voxelData: VoxelDataShaderInstance;
 
     private readonly u_CameraTexMatrix: WebGLUniformLocation | null;
     private readonly u_DepthRange: WebGLUniformLocation;
     private readonly u_InvViewProjMat: WebGLUniformLocation;
+    private readonly u_WorldToEnvMatrix: WebGLUniformLocation | null;
 
     constructor(builder: ShaderInstanceBuilder, parent: GlobalLightingShaderModule)
     {
@@ -280,10 +295,12 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
         this.u_CameraTexMatrix = gl.getUniformLocation(builder.program.handle, parent.u_CameraTexMatrix);
         this.u_DepthRange = gl.getUniformLocation(builder.program.handle, parent.u_DepthRange)!;
         this.u_InvViewProjMat = gl.getUniformLocation(builder.program.handle, parent.u_InvViewProjMat)!;
+        this.u_WorldToEnvMatrix = gl.getUniformLocation(builder.program.handle, parent.u_WorldToEnvMatrix);
 
         this.g1Texture = builder.getUnwrap(parent.g1Texture);
         this.ssaoTexture = builder.getUnwrap(parent.ssaoTexture);
         this.cameraTexture = parent.cameraTexture && builder.getUnwrap(parent.cameraTexture);
+        this.envTexture = parent.envTexture && builder.getUnwrap(parent.envTexture);
         this.voxelData = builder.getUnwrap(parent.voxelData);
     }
 
@@ -293,10 +310,12 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
             viewProjMat: mat4.create(),
             invViewProjMat: mat4.create(),
             cameraTextureMat: mat4.create(),
+            worldToEnvMat: mat4.create(),
             voxelData: builder.getUnwrap(this.voxelData),
             g1Texture: builder.getUnwrap(this.g1Texture),
             ssaoTexture: builder.getUnwrap(this.ssaoTexture),
             cameraTexture: this.cameraTexture && builder.getUnwrap(this.cameraTexture),
+            envTexture: this.envTexture && builder.getUnwrap(this.envTexture),
             depthNear: 0,
             depthFar: 0,
         };
@@ -307,6 +326,9 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
         const {gl} = this.context;
         if (this.u_CameraTexMatrix) {
             gl.uniformMatrix4fv(this.u_CameraTexMatrix, false, param.cameraTextureMat);
+        }
+        if (this.u_WorldToEnvMatrix) {
+            gl.uniformMatrix4fv(this.u_WorldToEnvMatrix, false, param.worldToEnvMat);
         }
         gl.uniform2f(this.u_DepthRange, param.depthNear, param.depthFar);
         gl.uniformMatrix4fv(this.u_InvViewProjMat, false, param.invViewProjMat);

@@ -7,6 +7,7 @@
 
 // exports
 #pragma global u_DepthRange
+#pragma global u_WorldToEnvMatrix
 
 // varyings
 #pragma global v_TexCoord
@@ -18,6 +19,7 @@
 #pragma global g1Texture
 #pragma global ssaoTexture
 #pragma global cameraTexture
+#pragma global envTexture
 #pragma global fetchVoxelDensity
 #pragma global fetchVoxelMaterial
 #pragma global PI
@@ -27,6 +29,7 @@ varying highp vec3 v_WSView;
 
 #if ENABLE_AR
 varying highp vec2 v_CameraTexCoord;
+uniform mediump mat4 u_WorldToEnvMatrix;
 #endif
 
 uniform highp vec2 u_DepthRange;
@@ -38,6 +41,13 @@ void main() {
 
 #if ENABLE_AR
     mediump vec3 camera_image = texture2D(cameraTexture, v_CameraTexCoord).xyz;
+
+    // DEBUG
+    /* camera_image = textureCubeLodEXT(
+        envTexture,
+        (u_WorldToEnvMatrix * vec4(normalize(v_WSView), 0.0)).xyz,
+        0.0
+    ).xyz; // */
 #endif
 
     // # Fetch GBuffer 1
@@ -92,7 +102,7 @@ void main() {
     mediump vec3 ws_normal = normalize(neighbor2 - neighbor1);
 
     // # Perform shading
-    mediump vec3 ws_view = -normalize(v_WSView);
+    mediump vec3 ws_view = -normalize(v_WSView); // Oriented so that dot(ws_view, ws_normal) >= 0
     mediump vec3 accumulated = vec3(0.0);
     mediump float dot_nv = dot(ws_normal, ws_view);
 
@@ -149,14 +159,31 @@ void main() {
         vec4(1.0 / 0.96, 0.475, 0.0182292, 0.25) * gloss;
     mediump float env_a0 = env_t.x * min(env_t.y, exp2(-9.28 * dot_nv)) + env_t.z;
     mediump float env_a1 = env_t.w;
-    mediump float env_brdf_dielectric = mix(env_a0, env_a1, rf_0);
-    mediump vec3 env_brdf = vec3(env_brdf_dielectric) +
-        base_color * (metalness * (1.0 - env_brdf_dielectric));
-    accumulated += env_image * env_brdf;
+    mediump float env_specular_dielectric = mix(env_a0, env_a1, rf_0);
+    mediump vec3 env_specular = vec3(env_specular_dielectric) +
+        base_color * (metalness * (1.0 - env_specular_dielectric));
+#if ENABLE_AR
+    mediump vec3 ws_reflection = reflect(-ws_view, ws_normal);
+    mediump vec3 es_reflection = (u_WorldToEnvMatrix * vec4(ws_reflection, 0.0)).xyz;
+    // TODO: choose appropriate mip level
+    mediump vec3 env_image_specular = textureCubeLodEXT(envTexture, es_reflection, 0.0).xyz;
+    env_image_specular *= env_image_specular; // gamma correction
+    accumulated += env_image_specular * env_specular;
+#else
+    accumulated += env_image * env_specular;
+#endif
 
     // ### Diffuse
+    mediump vec3 env_diffuse = base_color * ((1.0 - metalness) * (1.0 - env_specular_dielectric) * ssao);
+#if ENABLE_AR
+    mediump vec3 es_normal = (u_WorldToEnvMatrix * vec4(ws_normal, 0.0)).xyz;
+    mediump vec3 es_img_diffuse = textureCubeLodEXT(envTexture, es_normal, 6.0).xyz;
+    es_img_diffuse *= es_img_diffuse; // gamma correction
+    accumulated += es_img_diffuse * env_diffuse;
+#else
     // (Use the same `env_image` for now...)
-    accumulated += env_image * base_color * ((1.0 - metalness) * (1.0 - env_brdf_dielectric) * ssao);
+    accumulated += env_image * env_diffuse;
+#endif
 
     gl_FragColor = vec4(sqrt(accumulated), 1.0);
 }

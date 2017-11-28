@@ -4,11 +4,9 @@
  * This file is a part of ARcane. Please read the license text that
  * comes with the source code for use conditions.
  */
-import { IDisposable } from '../../utils/interfaces';
 import { Service } from '../../utils/workerboot';
+import { EnvironmentEstimatorParam } from './envestimator';
 
-export interface WorkerBootParam
-{
-}
+export type WorkerBootParam = EnvironmentEstimatorParam;
 
 export const service = new Service<WorkerBootParam, void>('draw');

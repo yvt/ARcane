@@ -75,6 +75,7 @@ export interface ARController
 {
     image: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement;
     readonly canvas: HTMLCanvasElement;
+    readonly imageData: ImageData | undefined;
     readonly ctx: Canvas2DContextAttributes;
     readonly videoWidth: number;
     readonly videoHeight: number;

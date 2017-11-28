@@ -10,6 +10,7 @@ import { setBitArrayRange, findOneInBitArray, findZeroInBitArray } from '../util
 
 import { GLContext } from './globjs/context';
 import { GLConstants } from './globjs/constants';
+import { CameraImageData } from './model';
 
 export class CameraImage implements IDisposable
 {
@@ -32,11 +33,11 @@ export class CameraImage implements IDisposable
         gl.texImage2D(GLConstants.TEXTURE_2D, 0, gl.RGBA, 1, 1, 0, gl.RGBA, gl.UNSIGNED_BYTE, new Uint8Array([0, 0, 0, 0]));
     }
 
-    updateWith(image: HTMLCanvasElement): void
+    updateWith(image: CameraImageData): void
     {
         const {gl} = this.context;
         gl.bindTexture(GLConstants.TEXTURE_2D, this.texture);
-        gl.texImage2D(GLConstants.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, image);
+        gl.texImage2D(GLConstants.TEXTURE_2D, 0, gl.RGBA, image.width, image.height, 0, gl.RGBA, gl.UNSIGNED_BYTE, image.data);
 
         this.width = image.width;
         this.height = image.height;

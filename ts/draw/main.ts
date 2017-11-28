@@ -12,6 +12,7 @@ import { TOPICS } from "./log";
 import { WorkerClient } from '../utils/workerboot';
 
 import { service } from './worker/port';
+import { EnvironmentEstimatorClient } from './worker/envestimator_client';
 
 import { QuadRenderer } from './quad';
 import { Blitter } from './subpasses/blit';
@@ -23,7 +24,7 @@ import { GizmoPass } from './passes/gizmo';
 import { VisualizeColorBufferPass } from './passes/visualize';
 import { SsaoPass } from './passes/ssao/toplevel';
 
-import { Scene } from './model';
+import { Scene, CameraImageData } from './model';
 import { VoxelData, VoxelDataManager } from './voxeldata';
 import { CameraImage } from './cameraimage';
 
@@ -53,6 +54,7 @@ export class Renderer
     readonly cameraImage: CameraImage;
 
     private worker: WorkerClient;
+    environmentEstimator: EnvironmentEstimatorClient;
 
     constructor(
         public readonly gl: WebGLRenderingContext,
@@ -86,12 +88,18 @@ export class Renderer
         this.visualizeColorBufferPass = new VisualizeColorBufferPass(this);
 
         this.worker = workerFactory();
-        this.worker.call(service, {});
+        this.environmentEstimator = new EnvironmentEstimatorClient({
+            host: this.worker.host,
+            context: this.context,
+            scene: this.scene,
+        });
+        this.worker.call(service, { ...this.environmentEstimator.bootParam });
     }
 
     dispose(): void
     {
         this.worker.dispose();
+        this.worker.worker.terminate();
 
         this.presentPass.dispose();
         this.raytracePass.dispose();
@@ -152,6 +160,12 @@ export class Renderer
         this.profiler.beginFrame();
         this.pipeline.render();
         this.profiler.finalizeFrame();
+    }
+
+    setCameraImage(data: CameraImageData): void
+    {
+        this.cameraImage.updateWith(data);
+        this.environmentEstimator.update(data);
     }
 
     startProfiling(callback?: (result: ProfilerResult) => void): void

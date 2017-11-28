@@ -8,6 +8,7 @@
 // exports
 #pragma global u_ViewProjMat
 #pragma global u_DepthRange
+#pragma global SKIP_MODEL
 
 // imports
 #pragma global fetchVoxelDensity
@@ -58,6 +59,9 @@ bool voxelTrace(
     out highp vec3 hitVoxel,
     out highp vec3 hitPosition
 ) {
+#if SKIP_MODEL
+    return false;
+#endif
     highp vec3 rayDir = normalize(rayEnd - rayStart);
 
     clipRay(rayStart, rayEnd, rayDir, vec3(1.0, 0.0, 0.0), 0.0);

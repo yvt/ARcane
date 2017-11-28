@@ -60,6 +60,8 @@
 		this.canvas.height = h;
 		this.ctx = this.canvas.getContext('2d');
 
+		this.imageData = void 0;
+
 		this.videoWidth = w;
 		this.videoHeight = h;
 
@@ -1011,6 +1013,8 @@
 
 		var imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
 		var data = imageData.data;
+
+		this.imageData = imageData;
 
 		if (this.dataHeap) {
 			this.dataHeap.set( data );

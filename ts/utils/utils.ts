@@ -44,6 +44,15 @@ export function filterMap<T, S>(array: ArrayLike<T>, cb: (e: T, i: number) => S 
     return result;
 }
 
+export function table<T>(length: number, cb: (i: number) => T): T[]
+{
+    const result: T[] = [];
+    for (let i = 0; i < length; ++i) {
+        result.push(cb(i));
+    }
+    return result;
+}
+
 export function assert(cond: boolean, message?: string): void
 {
     if (!cond) {
