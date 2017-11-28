@@ -62,6 +62,7 @@ function gyroCallback(e: DeviceOrientationEvent): void
         // TODO: how can I know the "natural" orientation
     }
     mat4.rotate(measurement.matrix, measurement.matrix, screenOrient * Math.PI / 180, [0, 0, 1]);
+    mat4.scale(measurement.matrix, measurement.matrix, [1, 1, -1]);
 
     listeners.forEach((_, listener) => {
         if (listener.onData) {

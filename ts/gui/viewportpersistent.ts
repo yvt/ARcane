@@ -389,17 +389,12 @@ export class ViewportPersistent implements IDisposable
             const dummyFar = 100;
             const dummyNear = 0.01;
             scene.projectionMatrix[10] = (dummyNear + dummyFar) / (dummyNear - dummyFar);
-            scene.projectionMatrix[11] = -1;
+            scene.projectionMatrix[11] = 1;
             scene.projectionMatrix[14] = (2 * dummyNear * dummyFar) / (dummyNear - dummyFar);
 
             if (activeState.markerFound) {
                 mat4.scale(scene.viewMatrix, activeState.markerMatrix, [1, 1, 1]);
                 mat4.translate(scene.viewMatrix, scene.viewMatrix, [-128, -128, 0]);
-
-                // Make sure objects are in the negative Z region
-                for (let i = 0; i < 4; ++i) {
-                    scene.viewMatrix[i * 4 + 2] *= -1;
-                }
             } else {
                 mat4.identity(scene.viewMatrix);
             }
@@ -420,7 +415,7 @@ export class ViewportPersistent implements IDisposable
                 }
             }
 
-            vec4.set(v, 0, 0, -dummyNear, 1);
+            vec4.set(v, 0, 0, dummyNear, 1);
             vec4.transformMat4(v, v, scene.projectionMatrix);
             const origMinZ = v[2] / v[3];
 
