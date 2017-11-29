@@ -11,6 +11,11 @@ module.exports = debug => ({
   module: {
     rules: [
       {
+        test: /\.wasm$/,
+        use: 'wasm-loader',
+        exclude: /node_modules/
+      },
+      {
         test: /\.tsx?$/,
         use: 'ts-loader',
         exclude: /node_modules/

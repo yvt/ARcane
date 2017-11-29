@@ -7,6 +7,9 @@
 import bind from 'bind-decorator';
 import { vec4, mat4 } from 'gl-matrix';
 
+const envmapgenModule: (imports?: any) => Promise<WebAssembly.ResultObject> =
+    require('../../../target/envmapgen.wasm');
+
 import { table, assertEq } from '../../utils/utils';
 import { Host, Channel } from '../../utils/workertransport';
 import {
@@ -68,12 +71,19 @@ class EnvironmentEstimator
     private layers = table(8 * (Layout.LOG_SIZE + 1), i => (i & 7) < 6 ?
         new Float32Array(((Layout.SIZE >> (i >> 3)) ** 2) * 4) : null);
 
+    private envmapgen: WebAssembly.Instance;
+
     constructor(param: EnvironmentEstimatorParam, host: Host)
     {
         const input = host.getUnwrap(param.environmentEstimatorInput);
         input.onMessage = this.handleInput;
 
         this.output = host.getUnwrap(param.environmentEstimatorOutput);
+
+        envmapgenModule().then(instance => {
+            this.envmapgen = instance.instance;
+            console.log(`hello() = ${this.envmapgen.exports.hello()}`);
+        });
     }
 
     @bind

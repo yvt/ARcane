@@ -6,3 +6,4 @@
 /dist/bundle.css.gz
 /dist/bundle.css.map
 /ts/gui/*.d.ts
+/target
