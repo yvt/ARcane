@@ -12,8 +12,8 @@
  * provided by the browser.
  */
 export const now = (() => {
-    if (window.performance && window.performance.now) {
-        return () => window.performance.now();
+    if (typeof performance !== 'undefined' && performance.now) {
+        return () => performance.now();
     }
 
     let lastValue = 0;
