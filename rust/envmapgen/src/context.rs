@@ -115,10 +115,12 @@ impl Context {
         {
             for (src_face, dst_face) in src_level.iter().zip(dst_level.iter_mut()) {
                 for (src, dst) in src_face.data.iter().zip(dst_face.data.iter_mut()) {
-                    dst.x = table[(src.x as usize) & 0xffff];
-                    dst.y = table[(src.y as usize) & 0xffff];
-                    dst.z = table[(src.z as usize) & 0xffff];
-                    dst.w = 255;
+                    *dst = Vector4::new(
+                        table[(src.x as usize) & 0xffff],
+                        table[(src.y as usize) & 0xffff],
+                        table[(src.z as usize) & 0xffff],
+                        255,
+                    );
                 }
             }
         }
