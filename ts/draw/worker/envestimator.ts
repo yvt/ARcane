@@ -32,6 +32,6 @@ export interface EnvironmentEstimatorOutput
 
 export const enum EnvironmentEstimatorConstants
 {
-    LOG_SIZE = 7,
+    LOG_SIZE = 8,
     SIZE = 1 << LOG_SIZE,
 }

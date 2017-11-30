@@ -6,6 +6,8 @@
  */
 import bind from 'bind-decorator';
 
+export type Ptr = number;
+
 export class WasmHelper
 {
     private memory: WebAssembly.Memory | null = null;
@@ -21,6 +23,7 @@ export class WasmHelper
         }
 
         importObject.env.crypto_get_random_values = this.cryptoGetRandomValues;
+        importObject.env.powf = Math.pow;
 
         return importObject;
     }

@@ -8,4 +8,4 @@ crate-type = ["cdylib"]
 
 [dependencies]
 cgmath = "0.15.0"
-rand = "0.3.18"
+lazy_static = "1.0.0"
