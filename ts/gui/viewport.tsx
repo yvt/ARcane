@@ -231,7 +231,7 @@ export class Viewport extends React.Component<ViewportProps, State> implements V
             onMouseEnter={this.handleMouseEnter}
             onMouseLeave={this.handleMouseLeave}>
             <RequestAnimationFrame
-                onUpdate={this.update} />,
+                onUpdate={this.update} />
             <Port
                 element={props.persistent.canvas}
                 className={classNames.port +
