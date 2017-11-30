@@ -7,3 +7,5 @@ authors = ["ARcane Developers"]
 crate-type = ["cdylib"]
 
 [dependencies]
+cgmath = "0.15.0"
+rand = "0.3.18"

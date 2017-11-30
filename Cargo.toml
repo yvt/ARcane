@@ -1,6 +1,7 @@
 [workspace]
 members = [
-    "rust/envmapgen"
+    "rust/envmapgen",
+    "rust/libc"
 ]
 
 [profile.release]
@@ -11,3 +12,7 @@ panic = "abort"
 [profile.bench]
 lto = true
 debug = true
+
+[patch.crates-io]
+"libc" = { path = "rust/libc" }
+"rand" = { path = "rust/rand" }

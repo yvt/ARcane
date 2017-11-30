@@ -6,6 +6,7 @@
  */
 import bind from 'bind-decorator';
 import { vec4, mat4 } from 'gl-matrix';
+import { WasmHelper } from '../../utils/wasm';
 
 const envmapgenModule: (imports?: any) => Promise<WebAssembly.ResultObject> =
     require('../../../target/envmapgen.wasm');
@@ -80,7 +81,9 @@ class EnvironmentEstimator
 
         this.output = host.getUnwrap(param.environmentEstimatorOutput);
 
-        envmapgenModule().then(instance => {
+        const helper = new WasmHelper();
+        envmapgenModule(helper.augumentImportObject()).then(instance => {
+            helper.link(instance.instance.exports);
             this.envmapgen = instance.instance;
             console.log(`hello() = ${this.envmapgen.exports.hello()}`);
         });
