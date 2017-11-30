@@ -342,7 +342,7 @@ export class ViewportPersistent implements IDisposable
 
         const scene = renderer.scene;
         scene.gizmos.length = 0;
-        if (actualDisplayMode === DisplayMode.AR && this.ar.activeState) {
+        if (actualDisplayMode === DisplayMode.AR && this.ar.activeState && this.ar.activeState.lastProcessedImage) {
             // Do AR thingy
             scene.enableAR = true;
 
