@@ -44,14 +44,6 @@ void main() {
 
 #if ENABLE_AR
     mediump vec3 camera_image = texture2D(cameraTexture, v_CameraTexCoord).xyz;
-
-    // DEBUG
-    /*
-    camera_image = sqrt(textureCubeLodEXT(
-        envTexture,
-        (u_WorldToEnvMatrix * vec4(normalize(v_WSView), 0.0)).xyz,
-        0.0
-    ).xyz); // */
 #endif
 
     // # Fetch GBuffer 1
@@ -146,6 +138,10 @@ void main() {
         mediump float brdf = dot_nl * brdf_d / brdf_v_rcp;
         accumulated += specular_mix * brdf;
     }
+#if ENABLE_AR
+    // Attenuate the punctual light so environmental light is more emphasized
+    accumulated *= 0.3;
+#endif
 
     // ## Ambient light
 
@@ -169,8 +165,9 @@ void main() {
 #if ENABLE_AR
     mediump vec3 ws_reflection = reflect(-ws_view, ws_normal);
     mediump vec3 es_reflection = (u_WorldToEnvMatrix * vec4(ws_reflection, 0.0)).xyz;
-    // TODO: choose appropriate mip level
-    mediump vec3 env_image_specular = textureCubeLodEXT(envTexture, es_reflection, 0.0).xyz;
+    // env_image_spec_lod = log2(256 / (power * 0.25)) / 2 = 5 - log2(power) * 0.5 = 5 - 6.5 * gloss
+    mediump float env_image_spec_lod = min(5.0 - 6.5 * gloss, 4.0);
+    mediump vec3 env_image_specular = textureCubeLodEXT(envTexture, es_reflection, env_image_spec_lod).xyz;
     env_image_specular *= env_image_specular; // gamma correction
     accumulated += env_image_specular * env_specular;
 #else
@@ -181,7 +178,7 @@ void main() {
     mediump vec3 env_diffuse = base_color * ((1.0 - metalness) * (1.0 - env_specular_dielectric) * ssao);
 #if ENABLE_AR
     mediump vec3 es_normal = (u_WorldToEnvMatrix * vec4(ws_normal, 0.0)).xyz;
-    mediump vec3 es_img_diffuse = textureCubeLodEXT(envTexture, es_normal, 6.0).xyz;
+    mediump vec3 es_img_diffuse = textureCubeLodEXT(envTexture, es_normal, 4.0).xyz;
     es_img_diffuse *= es_img_diffuse; // gamma correction
     accumulated += es_img_diffuse * env_diffuse;
 #else

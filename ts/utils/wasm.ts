@@ -24,6 +24,7 @@ export class WasmHelper
 
         importObject.env.crypto_get_random_values = this.cryptoGetRandomValues;
         importObject.env.powf = Math.pow;
+        importObject.env.expf = Math.exp;
 
         return importObject;
     }

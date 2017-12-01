@@ -62,9 +62,9 @@ export function createEditorState(): EditorState
 
                         dens[mapIndex(x, y, z)] = v;
 
-                        const gloss = 8;
+                        const gloss = 6 + Math.random() * Math.random() * 7 | 0;
                         const metalness = 0;
-                        mat[mapIndex(x, y, z)] = 0x604030 | (gloss << 24) | (metalness << 28);
+                        mat[mapIndex(x, y, z)] = 0x302020 | (gloss << 24) | (metalness << 28);
                     }
                 }
             }

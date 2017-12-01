@@ -10,6 +10,7 @@ extern crate cgmath;
 #[macro_use]
 extern crate lazy_static;
 extern crate arcane_gfx;
+extern crate smallvec;
 
 mod context;
 

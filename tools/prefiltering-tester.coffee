@@ -14,10 +14,10 @@
 ###
 
 # Texture size
-N = 256
+N = 64
 
 # Kernel size ratio to the standard deviation
-r = 4
+r = 2
 
 # Desired kernel radius in pixels
 K = 8
