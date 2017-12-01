@@ -10,6 +10,7 @@
 use std::ops;
 use std::mem::swap;
 use cgmath::{num_traits, Vector2};
+use accessor::SliceAccessor;
 
 use cubemap::CubeFace;
 
@@ -133,7 +134,7 @@ pub fn spherical_blur_phase<T, Trait>(
     for (out_face_i, out_face_img) in out_faces.iter_mut().enumerate() {
         let out_face_img = &mut out_face_img[0..size * size];
         let out_face = CubeFace::from_ordinal(out_face_i).unwrap();
-        let in_face_img = &in_faces[out_face_i][0..size * size];
+        let in_face_img = unsafe { SliceAccessor::new(&in_faces[out_face_i][0..size * size]) };
 
         if out_face.abs() == axis {
             // Radial blur
@@ -143,10 +144,14 @@ pub fn spherical_blur_phase<T, Trait>(
             let pos_v_face = out_face.v_face();
             let neg_v_face = -pos_v_face;
 
-            let pos_u_img = &in_faces[pos_u_face.as_ordinal()][0..size * size];
-            let neg_u_img = &in_faces[neg_u_face.as_ordinal()][0..size * size];
-            let pos_v_img = &in_faces[pos_v_face.as_ordinal()][0..size * size];
-            let neg_v_img = &in_faces[neg_v_face.as_ordinal()][0..size * size];
+            let pos_u_img =
+                unsafe { SliceAccessor::new(&in_faces[pos_u_face.as_ordinal()][0..size * size]) };
+            let neg_u_img =
+                unsafe { SliceAccessor::new(&in_faces[neg_u_face.as_ordinal()][0..size * size]) };
+            let pos_v_img =
+                unsafe { SliceAccessor::new(&in_faces[pos_v_face.as_ordinal()][0..size * size]) };
+            let neg_v_img =
+                unsafe { SliceAccessor::new(&in_faces[neg_v_face.as_ordinal()][0..size * size]) };
 
             let pos_u_idx = map_edge_index(pos_u_face, out_face, size);
             let neg_u_idx = map_edge_index(neg_u_face, out_face, size);
@@ -275,8 +280,12 @@ pub fn spherical_blur_phase<T, Trait>(
                 (out_face.v_face(), -out_face.v_face())
             };
 
-            let pos_axis_img = &in_faces[pos_axis_face.as_ordinal()][0..size * size];
-            let neg_axis_img = &in_faces[neg_axis_face.as_ordinal()][0..size * size];
+            let pos_axis_img = unsafe {
+                SliceAccessor::new(&in_faces[pos_axis_face.as_ordinal()][0..size * size])
+            };
+            let neg_axis_img = unsafe {
+                SliceAccessor::new(&in_faces[neg_axis_face.as_ordinal()][0..size * size])
+            };
 
             let pos_axis_idx = map_edge_index(pos_axis_face, out_face, size);
             let neg_axis_idx = map_edge_index(neg_axis_face, out_face, size);

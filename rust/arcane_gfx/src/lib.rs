@@ -4,6 +4,7 @@
  * This file is a part of ARcane. Please read the license text that
  * comes with the source code for use conditions.
  */
+#![cfg_attr(not(debug_assertions), feature(slice_get_slice))]
 extern crate cgmath;
 #[macro_use]
 extern crate lazy_static;
@@ -11,6 +12,7 @@ extern crate lazy_static;
 pub mod blur;
 pub mod cubemap;
 pub mod stamp;
+mod accessor;
 
 #[derive(Debug, Copy, Clone)]
 pub struct Image<T> {
