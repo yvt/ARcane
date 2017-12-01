@@ -6,9 +6,10 @@
  */
 use cgmath::{Vector4, Matrix4};
 use cgmath::prelude::*;
-use Image;
-use stamp::stamp_camera_image;
-use cubemap::CUBE_FACES;
+
+use arcane_gfx::Image;
+use arcane_gfx::stamp::stamp_camera_image;
+use arcane_gfx::cubemap::CUBE_FACES;
 
 const LOG_SIZE: usize = 8;
 const SIZE: usize = 1 << LOG_SIZE;

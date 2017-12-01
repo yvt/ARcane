@@ -1,5 +1,6 @@
 [workspace]
 members = [
+    "rust/arcane_gfx",
     "rust/envmapgen",
     "rust/libc"
 ]

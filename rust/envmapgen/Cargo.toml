@@ -9,3 +9,4 @@ crate-type = ["cdylib"]
 [dependencies]
 cgmath = "0.15.0"
 lazy_static = "1.0.0"
+arcane_gfx = { path = "../arcane_gfx" }
