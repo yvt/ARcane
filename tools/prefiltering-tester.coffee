@@ -20,7 +20,7 @@ N = 64
 r = 2
 
 # Desired kernel radius in pixels
-K = 8
+K = 4
 
 mipLevelToPower = (n) -> ((2 ** -n) * N * r / K) ** 2
 

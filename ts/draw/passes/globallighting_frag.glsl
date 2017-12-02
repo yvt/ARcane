@@ -165,8 +165,8 @@ void main() {
 #if ENABLE_AR
     mediump vec3 ws_reflection = reflect(-ws_view, ws_normal);
     mediump vec3 es_reflection = (u_WorldToEnvMatrix * vec4(ws_reflection, 0.0)).xyz;
-    // env_image_spec_lod = log2(256 / (power * 0.25)) / 2 = 5 - log2(power) * 0.5 = 5 - 6.5 * gloss
-    mediump float env_image_spec_lod = min(5.0 - 6.5 * gloss, 4.0);
+    // env_image_spec_lod = log2(1024 / (power * 0.25)) / 2 = 6 - log2(power) * 0.5 = 6 - 6.5 * gloss
+    mediump float env_image_spec_lod = min(6.0 - 6.5 * gloss, 4.0);
     mediump vec3 env_image_specular = textureCubeLodEXT(envTexture, es_reflection, env_image_spec_lod).xyz;
     env_image_specular *= env_image_specular; // gamma correction
     accumulated += env_image_specular * env_specular;

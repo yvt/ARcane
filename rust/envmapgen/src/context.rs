@@ -15,7 +15,7 @@ use arcane_gfx::cubemap::CUBE_FACES;
 const LOG_SIZE: usize = 6;
 const SIZE: usize = 1 << LOG_SIZE;
 
-static BLUR_KERNEL_SIGMA: f32 = 8.0;
+static BLUR_KERNEL_SIGMA: f32 = 4.0;
 static BLUR_KERNEL_RATIO: f32 = 2.0;
 
 lazy_static! {
@@ -38,7 +38,7 @@ lazy_static! {
         let mut last_variance = 0.0;
         (0..5u8).map(|i| {
             let size = SIZE >> i;
-            let sigma = (i as f32 - 4.0).exp2();
+            let sigma = (i as f32 - 5.0).exp2();
 
             // The amount of blur applied on this stage
             let res_sigma = (sigma * sigma - last_variance).sqrt();
