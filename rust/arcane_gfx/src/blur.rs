@@ -56,6 +56,12 @@ impl CubeMapTrait for StretchedCubeMapTrait {
     }
 }
 
+// Convert from a given fixed point value to integer with the nearest rounding mode.
+#[inline(always)]
+fn round_xp2i(v: i32) -> i32 {
+    (v + 32768) >> 16
+}
+
 /// Perform a single pass of a linear-time approximate spherical Gaussian blur.
 ///
 /// See the example `blurcubemap` for the usage.
@@ -77,6 +83,9 @@ pub fn spherical_blur_phase<T, Trait>(
     let kernel_radius = kernel.len() / 2;
     assert!(kernel_scale >= 0.0);
     assert!(size as f32 > kernel_radius as f32 * kernel_scale * 3.0f32.sqrt());
+
+    // Limitation due to the fixed point arithmetics
+    assert!(size <= 32768);
 
     let out_faces = &mut out_faces[0..6];
     let in_faces = &in_faces[0..6];
@@ -222,41 +231,65 @@ pub fn spherical_blur_phase<T, Trait>(
                                 cross_offs,
                             );
 
-                        for weight in kernel.iter() {
-                            let distance = if in_coord_df.x >= 0.0 {
+                        // Convert to 16.16 fixed point
+                        let mut in_coord_f = (in_coord_f * 65536.0).cast::<i32>();
+                        let mut in_coord_df = (in_coord_df * 65536.0).cast::<i32>();
+                        let brd_min = (brd_min * 65536.0) as i32;
+                        let brd_max = (brd_max * 65536.0) as i32;
+
+                        macro_rules! step_overflow {
+                            ($dist:expr) => ({
+                                let distance_i = round_xp2i($dist - brd_min) as isize;
+                                overflow_img[(overflow_start + distance_i * overflow_offs) as usize]
+                            })
+                        }
+                        macro_rules! step_normal {
+                            () => ({
+                                let in_coord_x = round_xp2i(in_coord_f.x) as usize;
+                                let in_coord_y = round_xp2i(in_coord_f.y) as usize;
+                                in_face_img[in_coord_x * offs.x + in_coord_y * offs.y]
+                            })
+                        }
+
+                        // `in_coord_df.x` is monotonically increasing/decreasing, so...
+                        let mut it = kernel.iter();
+
+                        loop {
+                            if in_coord_df.x >= 0 {
                                 if in_coord_f.x >= brd_max {
-                                    Some(in_coord_f.x - brd_max)
-                                } else {
-                                    None
+                                    break;
                                 }
                             } else {
                                 if in_coord_f.x <= brd_min {
-                                    Some(brd_min - in_coord_f.x)
-                                } else {
-                                    None
+                                    break;
                                 }
-                            };
-
-                            let value;
-                            if let Some(distance) = distance {
-                                let distance_i = roundf32(distance - brd_min) as isize;
-                                value = overflow_img[(overflow_start +
-                                                         distance_i * overflow_offs) as
-                                                         usize];
-                            } else {
-                                let in_coord_x = roundf32(in_coord_f.x) as usize;
-                                let in_coord_y = roundf32(in_coord_f.y) as usize;
-                                value = in_face_img[in_coord_x * offs.x + in_coord_y * offs.y];
                             }
+                            if let Some(weight) = it.next() {
+                                sum = sum + step_normal!() * *weight;
+                                in_coord_f += in_coord_df;
+                            } else {
+                                break;
+                            }
+                        }
+                        while let Some(weight) = it.next() {
+                            let distance = if in_coord_df.x >= 0 {
+                                in_coord_f.x - brd_max
+                            } else {
+                                brd_min - in_coord_f.x
+                            };
+                            debug_assert!(distance >= 0);
 
-                            sum = sum + value * *weight;
-
+                            sum = sum + step_overflow!(distance) * *weight;
                             in_coord_f += in_coord_df;
                         }
                     } else {
+                        // Convert to 16.16 fixed point
+                        let mut in_coord_f = (in_coord_f * 65536.0).cast::<i32>();
+                        let mut in_coord_df = (in_coord_df * 65536.0).cast::<i32>();
+
                         for weight in kernel.iter() {
-                            let in_coord_x = roundf32(in_coord_f.x) as usize;
-                            let in_coord_y = roundf32(in_coord_f.y) as usize;
+                            let in_coord_x = round_xp2i(in_coord_f.x) as usize;
+                            let in_coord_y = round_xp2i(in_coord_f.y) as usize;
 
                             sum = sum +
                                 in_face_img[in_coord_x * offs.x + in_coord_y * offs.y] * *weight;
@@ -305,38 +338,68 @@ pub fn spherical_blur_phase<T, Trait>(
                     let local_scale = kernel_scale * (1.0 + cur_u * cur_u + cur_v * cur_v).sqrt();
                     let mut sum = T::zero();
 
-                    let mut in_coord_x_f = x as f32;
-                    let in_coord_x_df = local_scale;
-                    in_coord_x_f -= in_coord_x_df * kernel_radius as f32;
+                    // 48.16 fixed point values
+                    let mut in_coord_x_f = (x as i32) << 16;
+                    let in_coord_x_df = (local_scale * 65536.0) as i32;
+                    let brd_min = (brd_min * 65536.0) as i32;
+                    let brd_max = (brd_max * 65536.0) as i32;
+                    let cur_v = (cur_v * 65536.0) as i32;
 
-                    for weight in kernel.iter() {
-                        let overflow = if in_coord_x_f <= brd_min {
-                            Some((neg_axis_idx, neg_axis_img, brd_min - in_coord_x_f))
-                        } else if in_coord_x_f >= brd_max {
-                            Some((pos_axis_idx, pos_axis_img, in_coord_x_f - brd_max))
-                        } else {
-                            None
-                        };
+                    in_coord_x_f -= in_coord_x_df * kernel_radius as i32;
 
-                        let value;
-                        if let Some(((base_idx, main_offs, cross_offs), overflow_img, distance)) =
-                            overflow
-                        {
-                            // Aim at the center
-                            let overflow_main_df = distance * -cur_v;
-                            let overflow_main = y as isize + roundf32(overflow_main_df) as isize;
-                            let overflow_cross = roundf32(distance) as isize;
-                            value = overflow_img[(base_idx + overflow_main * main_offs +
-                                                      overflow_cross * cross_offs) as
-                                                     usize];
-                        } else {
-                            let in_coord_x = roundf32(in_coord_x_f) as usize;
+                    macro_rules! step_overflow {
+                        ($idx:expr, $img:expr, $dist:expr) => ({
+                            // Toward the center
+                            let (base_idx, main_offs, cross_offs) = $idx;
+                            let overflow_main_df = $dist as i64 * (-cur_v as i64); // 32.32
+                            let overflow_main = y as isize + ((overflow_main_df + (32768 << 16)) >> 32) as isize;
+                            let overflow_cross = round_xp2i($dist) as isize;
+                            $img[(base_idx + overflow_main * main_offs +
+                                overflow_cross * cross_offs) as usize]
+                        })
+                    }
+                    macro_rules! step_normal {
+                        () => ({
+                            let in_coord_x = round_xp2i(in_coord_x_f) as usize;
                             let in_coord_y = y;
 
-                            value = in_face_img[in_coord_x * offs.x + in_coord_y * offs.y];
-                        }
+                            in_face_img[in_coord_x * offs.x + in_coord_y * offs.y]
+                        })
+                    }
 
-                        sum = sum + value * *weight;
+                    // `in_coord_x_f` monotonically increases, so...
+                    let mut it = kernel.iter();
+                    loop {
+                        if in_coord_x_f > brd_min {
+                            break;
+                        }
+                        if let Some(weight) = it.next() {
+                            sum = sum +
+                                step_overflow!(
+                                    neg_axis_idx,
+                                    neg_axis_img,
+                                    brd_min - in_coord_x_f
+                                ) * *weight;
+                        } else {
+                            break;
+                        }
+                        in_coord_x_f += in_coord_x_df;
+                    }
+                    loop {
+                        if in_coord_x_f >= brd_max {
+                            break;
+                        }
+                        if let Some(weight) = it.next() {
+                            sum = sum + step_normal!() * *weight;
+                        } else {
+                            break;
+                        }
+                        in_coord_x_f += in_coord_x_df;
+                    }
+                    while let Some(weight) = it.next() {
+                        sum = sum +
+                            step_overflow!(pos_axis_idx, pos_axis_img, in_coord_x_f - brd_max) *
+                                *weight;
                         in_coord_x_f += in_coord_x_df;
                     }
 
