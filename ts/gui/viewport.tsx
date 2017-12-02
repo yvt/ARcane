@@ -37,7 +37,7 @@ export interface State
 
     actualDisplayMode: DisplayMode;
 
-    /** Can be manipulated only via the React developer tools. */
+    /** Can be manipulated only via the React developer tools and `window.enableProfiling()`. */
     profilingEnabled: boolean;
 }
 
@@ -58,6 +58,10 @@ export class Viewport extends React.Component<ViewportProps, State> implements V
             arPlaying: false,
             actualDisplayMode: props.editorState.displayMode,
             profilingEnabled: false,
+        };
+
+        (window as any).enableProfiling = (e = true) => {
+            this.setState({ profilingEnabled: e });
         };
     }
 

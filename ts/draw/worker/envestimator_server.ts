@@ -7,6 +7,7 @@
 import bind from 'bind-decorator';
 import { vec4, mat4 } from 'gl-matrix';
 import { WasmHelper, Ptr } from '../../utils/wasm';
+import { fillWithRightAligned } from '../../utils/strings';
 
 const envmapgenModule: (imports?: any) => Promise<WebAssembly.ResultObject> =
     require('../../../target/envmapgen.wasm');
@@ -102,6 +103,7 @@ class EnvironmentEstimator
     {
         const emg = await this.envmapgen;
         const emgExports: EnvmapgenExports = emg.instance.exports;
+        let t1, t2, t3, t4;
 
         // Stamp the latest camere image onto the base cube map layer
         // (We do nothing fancy (no exposure estimation nor highlight
@@ -126,10 +128,13 @@ class EnvironmentEstimator
             new Float32Array(emgExports.memory.buffer, emg.matrixBuffer, 16)
                 .set(data.camera.matrix);
 
+            t1 = performance.now();
             emgExports.emg_context_stamp(emg.context, emg.cameraImageBuffer.ptr, width, height, emg.matrixBuffer);
         }
 
+        t2 = performance.now();
         emgExports.emg_context_process(emg.context);
+        t3 = performance.now();
 
         // Generate the result image
         const resultBuffer = data.resultBuffer || new ArrayBuffer(RESULT_BUFFER_SIZE);
@@ -147,9 +152,21 @@ class EnvironmentEstimator
             }
         }
 
+        t4 = performance.now();
+
+        let performanceProfilingResult = '';
+
+        if (data.profilePerformance) {
+            const colWidth = 10;
+            performanceProfilingResult += `| Stamp              | ${fillWithRightAligned(String((t2 - t1) * 1000 | 0), colWidth, ' ')} μs |\n`;
+            performanceProfilingResult += `| Pyramid Generation | ${fillWithRightAligned(String((t3 - t2) * 1000 | 0), colWidth, ' ')} μs |\n`;
+            performanceProfilingResult += `| Copy Output        | ${fillWithRightAligned(String((t4 - t3) * 1000 | 0), colWidth, ' ')} μs |`;
+        }
+
         this.output.postMessage({
             cameraBuffer: data.camera.image,
             result: resultBuffer,
+            performanceProfilingResult,
         }, [resultBuffer, data.camera.image]);
     }
 }

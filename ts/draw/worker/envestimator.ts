@@ -22,12 +22,14 @@ export interface EnvironmentEstimatorInput
         matrix: number[];
     };
     resultBuffer?: ArrayBuffer;
+    profilePerformance: boolean;
 }
 
 export interface EnvironmentEstimatorOutput
 {
     cameraBuffer: ArrayBuffer;
     result: ArrayBuffer;
+    performanceProfilingResult: string;
 }
 
 export const enum EnvironmentEstimatorConstants

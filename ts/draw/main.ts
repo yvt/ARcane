@@ -171,13 +171,44 @@ export class Renderer
         this.environmentEstimator.update(data);
     }
 
-    startProfiling(callback?: (result: ProfilerResult) => void): void
+    private profileCallback: ((result: string) => void) | null = null;
+    private gpuProfileText = '';
+    private eeProfileText = '';
+
+    private handleNewProfileData(): void
     {
-        this.profiler.startProfiling(callback);
+        let text = this.gpuProfileText;
+        text += '\n\nEnvironmentEstimator:\n' + this.eeProfileText;
+        if (this.profileCallback) {
+            this.profileCallback(text);
+        }
+    }
+
+    startProfiling(callback: (result: string) => void): void
+    {
+        this.gpuProfileText = "(GPU profile is unavailable)";
+        this.eeProfileText = "(EE profile is unavailable)";
+
+        this.profileCallback = callback;
+
+        this.environmentEstimator.onPerformanceProfile = (text) => {
+            this.eeProfileText = text;
+            this.handleNewProfileData();
+        };
+
+        this.profiler.startProfiling((result) => {
+            this.gpuProfileText = result.formatted;
+            this.handleNewProfileData();
+        });
+
+        this.handleNewProfileData();
     }
 
     stopProfiling(): void
     {
+        this.profileCallback = null;
+
         this.profiler.stopProfiling();
+        this.environmentEstimator.onPerformanceProfile = null;
     }
 }

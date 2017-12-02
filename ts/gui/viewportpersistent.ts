@@ -49,7 +49,7 @@ document.body.appendChild(stats.domElement);
 
 let profilerWindow: HTMLDivElement | null = null;
 
-function getProfilerCallback(): (result: ProfilerResult) => void
+function getProfilerCallback(): (result: string) => void
 {
     if (!profilerWindow) {
         profilerWindow = document.createElement('div');
@@ -58,7 +58,7 @@ function getProfilerCallback(): (result: ProfilerResult) => void
     }
 
     return (result) => {
-        profilerWindow!.innerText = result.formatted;
+        profilerWindow!.innerText = result;
     };
 }
 

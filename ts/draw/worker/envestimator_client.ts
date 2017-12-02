@@ -35,6 +35,8 @@ export class EnvironmentEstimatorClient
 
     private response: false | true | EnvironmentEstimatorOutput = true;
 
+    onPerformanceProfile: ((text: string) => void) | null = null;
+
     constructor(private context: EnvironmentEstimatorContext)
     {
         this.input = context.host.open();
@@ -125,6 +127,7 @@ export class EnvironmentEstimatorClient
                 matrix: Array.prototype.slice.call(cameraMatrix, 0, 16),
             },
             resultBuffer: void 0,
+            profilePerformance: !!this.onPerformanceProfile,
         };
         const transferList: any[] = [cameraImageBuffer];
 
@@ -142,5 +145,8 @@ export class EnvironmentEstimatorClient
     private handleOutput(data: EnvironmentEstimatorOutput): void
     {
         this.response = data;
+        if (this.onPerformanceProfile) {
+            this.onPerformanceProfile(data.performanceProfilingResult);
+        }
     }
 }
