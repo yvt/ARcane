@@ -90,7 +90,7 @@
     // Buttons
     > button, > label {
         box-sizing: border-box;
-        width: 30px; height: 30px;
+        width: 40px; height: 40px;
         background: rgba(255, 255, 255, 0.8);
         border-radius: 50%;
         border: none;
@@ -141,11 +141,11 @@
     > label > i {
         display: block;
         box-sizing: border-box;
-        width: 24px; height: 24px;
+        width: 28px; height: 28px;
         border: 2px solid black;
         border-radius: 50%;
         position: absolute;
-        left: 3px; top: 3px;
+        left: 6px; top: 6px;
         will-change: background-color;
     }
     > input:checked + label > i {
@@ -158,8 +158,8 @@
 
     // Arc (representing the current value of roughness)
     > div {
-        width: 24px; height: 24px; position: absolute;
-        left: 3px; top: 3px;
+        width: 28px; height: 28px; position: absolute;
+        left: 6px; top: 6px;
         &:before {
             content: "";
             display: block;
@@ -190,8 +190,8 @@
 .colorPopup, .roughnessPopup, .materialPopup {
     > div {
         position: absolute;
-        right: 50px;
-        top: -20px;
+        right: 60px;
+        top: -25px;
         transform: translate(0, -50%);
         z-index: 10;
 
@@ -228,8 +228,7 @@
         padding-left: 18px;
     }
     > div > div {
-        overflow: hidden;
-        width: 150px;
+        width: 120px;
     }
 }
 
