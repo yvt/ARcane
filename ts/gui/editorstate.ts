@@ -65,9 +65,9 @@ export function createEditorState(): EditorState
 
                         dens[mapIndex(x, y, z)] = v;
 
-                        const gloss = 6 + Math.random() * Math.random() * 7 | 0;
-                        const metalness = 0;
-                        mat[mapIndex(x, y, z)] = 0x302020 | (gloss << 24) | (metalness << 28);
+                        const gloss = Math.min((z + Math.random() * 4) >> 2, 63);
+                        const material = x > 128 ? 1 /* metallic */ : 0 /* dielectric */;
+                        mat[mapIndex(x, y, z)] = (x > 128 ? 0xa0a0a0 : 0x302020) | (gloss << 24) | (material << 30);
                     }
                 }
             }

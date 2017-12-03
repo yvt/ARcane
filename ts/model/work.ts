@@ -166,8 +166,9 @@ export class WorkData
      *    non-linear sRGB color space.
      *  - `e[23:16]` - The blue component of the base color, encoded in the
      *    non-linear sRGB color space.
-     *  - `e[27:24]` - Gloss.
-     *  - `e[31:28]` - Metalness.
+     *  - `e[29:24]` - Gloss.
+     *  - `e[31:30]` - Material type — `0` = dielectric, `1` = metal, other
+     *    values = reserved.
      */
     readonly material = new Uint32Array(GRID_SIZE * GRID_SIZE * GRID_SIZE);
 

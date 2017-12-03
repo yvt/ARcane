@@ -80,9 +80,11 @@ void main() {
     mediump vec4 material = fetchVoxelMaterial(hit_voxel);
     mediump vec3 base_color = material.xyz * material.xyz;
     mediump float rough_metal = floor(material.w * 255.0 + 0.5);
-    mediump float gloss = fract(rough_metal / 16.0);
-    mediump float metalness = floor(rough_metal / 16.0) / 15.0;
+    mediump float gloss = fract(rough_metal / 64.0);
+    mediump float material_id = floor(rough_metal / 64.0);
     mediump float rf_0 = 0.04;
+
+    bool metallic = material_id != 0.0;
 
     // # Derive the normal using the partial derivatives
     mediump vec3 neighbor1 = vec3(
@@ -109,7 +111,7 @@ void main() {
         mediump vec3 ws_half = normalize(ws_view + ws_light_dir);
         mediump float fresnel = pow(1.0 - dot(ws_half, ws_light_dir), 5.0);
         mediump vec4 specular_diffuse_mix = mix(
-            mix(vec4(rf_0), vec4(base_color, 1.0), metalness),
+            metallic ? vec4(base_color, 1.0) : vec4(rf_0),
             vec4(1.0),
             fresnel
         );
@@ -160,8 +162,10 @@ void main() {
     mediump float env_a0 = env_t.x * min(env_t.y, exp2(-9.28 * dot_nv)) + env_t.z;
     mediump float env_a1 = env_t.w;
     mediump float env_specular_dielectric = mix(env_a0, env_a1, rf_0);
-    mediump vec3 env_specular = vec3(env_specular_dielectric) +
-        base_color * (metalness * (1.0 - env_specular_dielectric));
+    mediump vec3 env_specular = vec3(env_specular_dielectric);
+    if (metallic) {
+        env_specular += base_color * (1.0 - env_specular_dielectric);
+    }
 #if ENABLE_AR
     mediump vec3 ws_reflection = reflect(-ws_view, ws_normal);
     mediump vec3 es_reflection = (u_WorldToEnvMatrix * vec4(ws_reflection, 0.0)).xyz;
@@ -175,16 +179,18 @@ void main() {
 #endif
 
     // ### Diffuse
-    mediump vec3 env_diffuse = base_color * ((1.0 - metalness) * (1.0 - env_specular_dielectric) * ssao);
+    if (!metallic) {
+        mediump vec3 env_diffuse = base_color * ((1.0 - env_specular_dielectric) * ssao);
 #if ENABLE_AR
-    mediump vec3 es_normal = (u_WorldToEnvMatrix * vec4(ws_normal, 0.0)).xyz;
-    mediump vec3 es_img_diffuse = textureCubeLodEXT(envTexture, es_normal, 4.0).xyz;
-    es_img_diffuse *= es_img_diffuse; // gamma correction
-    accumulated += es_img_diffuse * env_diffuse;
+        mediump vec3 es_normal = (u_WorldToEnvMatrix * vec4(ws_normal, 0.0)).xyz;
+        mediump vec3 es_img_diffuse = textureCubeLodEXT(envTexture, es_normal, 4.0).xyz;
+        es_img_diffuse *= es_img_diffuse; // gamma correction
+        accumulated += es_img_diffuse * env_diffuse;
 #else
-    // (Use the same `env_image` for now...)
-    accumulated += env_image * env_diffuse;
+        // (Use the same `env_image` for now...)
+        accumulated += env_image * env_diffuse;
 #endif
+    }
 
     gl_FragColor = vec4(sqrt(accumulated), 1.0);
 }
