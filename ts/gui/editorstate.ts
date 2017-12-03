@@ -5,6 +5,7 @@
  * comes with the source code for use conditions.
  */
 import { vec2, vec3, mat4 } from 'gl-matrix';
+import { UIColor, UIRgbColor } from './utils/color';
 import { Workspace } from '../model/workspace';
 import { createWork, mapIndex } from '../model/work';
 
@@ -21,6 +22,8 @@ export interface EditorState
 
     /** The mouse pointer is on the viewport region. */
     readonly viewportHot: boolean;
+
+    readonly activeColor: UIColor;
 
     readonly workspace: Workspace;
 }
@@ -84,6 +87,7 @@ export function createEditorState(): EditorState
             mouse: false,
         },
         viewportHot: false,
+        activeColor: new UIRgbColor(0.2, 0.25, 0.4, 1),
         workspace: { work },
     };
 }

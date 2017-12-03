@@ -1,0 +1,38 @@
+/*
+ * Copyright (c) 2017 ARcane Developers
+ *
+ * This file is a part of ARcane. Please read the license text that
+ * comes with the source code for use conditions.
+ */
+.slider {
+    position: relative;
+    height: 20px;
+    cursor: pointer;
+}
+
+.knobRange, .knob, .track {
+    position: absolute;
+    box-sizing: border-box;
+    pointer-events: none;
+}
+
+.knobRange {
+    left: 13px; right: 13px; top: 13px;
+}
+
+.knob {
+    top: 0;
+    transform: translate(-50%, -50%);
+    will-change: left;
+    width: 20px; height: 20px;
+    background: white;
+    border-radius: 10px;
+}
+
+.track {
+    left: 10px; right: 10px; top: 10px;
+    height: 6px;
+    background: rgba(0, 0, 0, 0.1);
+    border: 1px solid rgba(255, 255, 255, 0.8);
+    border-radius: 3px;
+}

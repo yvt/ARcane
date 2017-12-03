@@ -73,6 +73,86 @@
     }
 }
 
+.toolbar {
+    position: absolute;
+    top: 15px; right: 15px;
+    right: constant(safe-area-inset-right);
+    height: ~"calc(40% - 30px)";
+    /* iOS 11.2 and later */
+    @supports(right: max(0px)) { right: ~"max(15px, constant(safe-area-inset-right))" }
+
+    display: flex;
+    flex-direction: column;
+    justify-content: flex-end;
+
+    > input { display: none; }
+    > button, > label {
+        box-sizing: border-box;
+        width: 30px; height: 30px;
+        background: rgba(255, 255, 255, 0.8);
+        border-radius: 50%;
+        border: none;
+        padding: 0;
+        margin: 10px 0;
+        position: relative;
+        pointer-events: initial;
+        cursor: pointer;
+    }
+    > div {
+        position: relative;
+    }
+    > input:checked + label {
+        background: #5080f0;
+    }
+
+    // Color selection
+    > label > i {
+        display: block;
+        box-sizing: border-box;
+        width: 24px; height: 24px;
+        border: 2px solid black;
+        border-radius: 50%;
+        position: absolute;
+        left: 3px; top: 3px;
+        will-change: background-color;
+    }
+    > input:checked + label > i {
+        border-color: white;
+    }
+}
+
+.colorPopup {
+    > div {
+        position: absolute;
+        right: 50px;
+        top: -25px;
+        transform: translate(0, -50%);
+        z-index: 10;
+
+        background: rgba(230, 230, 230, 0.8);
+        border-radius: 10px;
+        padding: 10px;
+
+        &:before {
+            content: "";
+            display: block;
+            position: absolute;
+            right: -20px; top: ~"calc(50% - 10px)";
+            width: 0; height: 0;
+            border: 10px solid;
+            border-color: transparent;
+            border-left: 10px solid rgba(230, 230, 230, 0.8);
+        }
+
+        pointer-events: initial;
+        transition: 200ms opacity;
+        opacity: 0;
+        &:global(.act) {
+            opacity: 1;
+        }
+    }
+}
+
 .mouseHelp {
     position: absolute;
     bottom: 15px; right: 15px;

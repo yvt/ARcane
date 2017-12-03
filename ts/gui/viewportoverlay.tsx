@@ -8,8 +8,11 @@ import * as React from 'react';
 import bind from 'bind-decorator';
 
 import { RadioList } from './controls/radiolist';
+import { ColorPicker } from './controls/colorpicker';
 
 import { EditorState, DisplayMode } from './editorstate';
+import { UIColor } from './utils/color';
+import { PopupFrame } from './utils/popup';
 
 const classNames = require('./viewportoverlay.less');
 
@@ -22,6 +25,7 @@ export interface ViewportOverlayProps
 
 interface State
 {
+    colorPopupActive: boolean;
 }
 
 const DISPLAY_MODE_LIST = [{
@@ -57,7 +61,9 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
     {
         super(props);
 
-        this.state = {};
+        this.state = {
+            colorPopupActive: false,
+        };
     }
 
     @bind
@@ -69,14 +75,49 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
         });
     }
 
+    @bind
+    private handleActiveColorChange(newValue: UIColor): void
+    {
+        this.props.onChangeEditorState({
+            ... this.props.editorState,
+            activeColor: newValue,
+        });
+    }
+
+    @bind
+    private handleShowColorPopup(): void { this.setState({ colorPopupActive: true }); }
+
+    @bind
+    private handleDismissColorPopup(): void { this.setState({ colorPopupActive: false }); }
+
     render()
     {
-        const {props} = this;
+        const {props, state} = this;
         const {editorState} = props;
 
         const DisplayModeRadioList: new() => RadioList<DisplayMode> = RadioList as any;
 
         return <div className={classNames.wrapper}>
+            <div className={classNames.toolbar}>
+                <input
+                    id='toolbar-color'
+                    type='checkbox'
+                    onChange={this.handleShowColorPopup}
+                    checked={state.colorPopupActive} />
+                <label htmlFor='toolbar-color'>
+                    <i style={{backgroundColor: editorState.activeColor.toRgb().toCss()}} />
+                </label>
+                <div className={classNames.colorPopup}>
+                    <PopupFrame
+                        active={state.colorPopupActive}
+                        onDismiss={this.handleDismissColorPopup}>
+                        <ColorPicker
+                            value={props.editorState.activeColor}
+                            onChange={this.handleActiveColorChange}
+                            />
+                    </PopupFrame>
+                </div>
+            </div>
             <DisplayModeRadioList
                 className={classNames.displayModeList}
                 items={DISPLAY_MODE_LIST}
