@@ -5,9 +5,14 @@
  * comes with the source code for use conditions.
  */
 .picker {
-    width: 150px;
+    width: 200px;
 
     > div {
+        margin: 5px 0;
+    }
+
+    > ul {
+        text-align: center;
         margin: 10px 0;
     }
 }
@@ -26,4 +31,47 @@
 
 .track {
     will-change: background;
+}
+
+// Color disc
+.colorDisc {
+    position: relative;
+    width: 170px; height: 170px;
+    margin: 15px auto 5px !important;
+    cursor: pointer;
+
+    canvas {
+        position: absolute;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+    }
+
+    // Disc
+    > div:not(.colorDiscKnob) {
+        position: absolute;
+        left: 15%; top: 15%;
+        width: 70%; height: 70%;
+        > canvas {
+            border-radius: 50%;
+        }
+    }
+
+    // Ring
+    > canvas {
+        -webkit-mask-image: data-uri('image/svg+xml;base64', '../../../images/color_ring_mask.svg');
+        mask-image: data-uri('image/svg+xml;base64', '../../../images/color_ring_mask.svg');
+        -webkit-mask-size: cover;
+        mask-size: cover;
+        left: 5%; top: 5%;
+        width: 90%; height: 90%;
+    }
+}
+.colorDiscKnob {
+    position: absolute;
+    left: -11px; top: -11px;
+    will-change: transform, background;
+    width: 18px; height: 18px;
+    background: white;
+    border: 2px solid white;
+    border-radius: 50%;
 }
