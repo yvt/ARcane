@@ -7,6 +7,8 @@
 import bind from 'bind-decorator';
 import { IDisposable } from '../../utils/interfaces';
 
+const root = document.body.parentElement as HTMLHtmlElement;
+
 export class MouseRouter<T> implements IDisposable
 {
     onMouseDown: ((e: MouseEvent, state: T | null) => T | null) | null;
@@ -39,8 +41,8 @@ export class MouseRouter<T> implements IDisposable
         this.state = state;
 
         if (this.buttons.size === 0) {
-            document.body.addEventListener('mousemove', this.handleMouseMove);
-            document.body.addEventListener('mouseup', this.handleMouseUp);
+            root.addEventListener('mousemove', this.handleMouseMove);
+            root.addEventListener('mouseup', this.handleMouseUp);
         }
 
         this.buttons.set(e.button, true);
@@ -65,8 +67,8 @@ export class MouseRouter<T> implements IDisposable
         this.buttons.delete(e.button);
 
         if (last) {
-            document.body.removeEventListener('mousemove', this.handleMouseMove);
-            document.body.removeEventListener('mouseup', this.handleMouseUp);
+            root.removeEventListener('mousemove', this.handleMouseMove);
+            root.removeEventListener('mouseup', this.handleMouseUp);
         }
 
         if (this.onMouseUp && this.state) {
