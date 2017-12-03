@@ -1,0 +1,54 @@
+/*!
+ * Based on pure-css-pie (https://github.com/yvt/pure-css-pie) Copyright 2016 yvt.
+ * Distributed under the MIT License (license terms are at http://opensource.org/licenses/MIT).
+ */
+.pinkie {
+    position: relative;
+    display: inline-block;
+
+    div, i, s {
+        position: absolute;
+        display: block;
+        height: 100%;
+    }
+
+    div {
+        width: 50%;
+        top: 0;
+        overflow: hidden;
+    }
+    .part1 {
+        left: 50%;
+        i {
+            left: -100%;
+        }
+    }
+    .part2 {
+        left: 50%;
+        transform: rotate(180deg);
+        transform-origin: 0 50%;
+        div {
+            width: 100%;
+            left: -100%;
+            transform-origin: 100% 50%;
+        }
+        s {
+            left: 0;
+            width: 100%;
+            transform: rotate(180deg);
+            transform-origin: 100% 50%;
+        }
+        i {
+            left: 0;
+        }
+    }
+
+    // Half pie
+    i {
+        width: 100%;
+        border-radius: ~"100% 0 0 100% / 50% 0 0 50%";
+        transform-origin: 100% 50%;
+        background: black;
+        box-sizing: border-box;
+    }
+}

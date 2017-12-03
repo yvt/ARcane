@@ -81,7 +81,7 @@ export class PopupFrame extends React.PureComponent<PopupFrameProps, {}>
     {
         const {props} = this;
         return <div
-            className={props.className + (props.active ? ' act' : '')}
+            className={(props.className || '') + (props.active ? ' act' : '')}
             style={props.style}
             onTouchStart={this.handleForegroundInput}
             onMouseDown={this.handleForegroundInput}>{props.children}</div>;

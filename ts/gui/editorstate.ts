@@ -25,6 +25,12 @@ export interface EditorState
 
     readonly activeColor: UIColor;
 
+    /** An integer in range `[0, 63]` */
+    readonly activeRoughness: number;
+
+    /** An integer in range `[0, 1]` */
+    readonly activeMaterial: number;
+
     readonly workspace: Workspace;
 }
 
@@ -88,6 +94,8 @@ export function createEditorState(): EditorState
         },
         viewportHot: false,
         activeColor: new UIRgbColor(0.2, 0.25, 0.4, 1),
+        activeRoughness: 32,
+        activeMaterial: 0,
         workspace: { work },
     };
 }

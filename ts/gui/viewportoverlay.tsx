@@ -9,12 +9,15 @@ import bind from 'bind-decorator';
 
 import { RadioList } from './controls/radiolist';
 import { ColorPicker } from './controls/colorpicker';
+import { PureCssPie } from './controls/purecsspie';
+import { Slider } from './controls/slider';
 
 import { EditorState, DisplayMode } from './editorstate';
 import { UIColor } from './utils/color';
 import { PopupFrame } from './utils/popup';
 
 const classNames = require('./viewportoverlay.less');
+const radioListClassNames = require('./controls/radiolist_styles.less');
 
 export interface ViewportOverlayProps
 {
@@ -26,6 +29,8 @@ export interface ViewportOverlayProps
 interface State
 {
     colorPopupActive: boolean;
+    roughnessPopupActive: boolean;
+    materialPopupActive: boolean;
 }
 
 const DISPLAY_MODE_LIST = [{
@@ -35,6 +40,14 @@ const DISPLAY_MODE_LIST = [{
     value: DisplayMode.AR,
     label: <span>AR</span>,
 }, ];
+
+const MATERIAL_LIST = [{
+    value: 0,
+    label: 'Dielectric',
+}, {
+    value: 1,
+    label: 'Metal',
+}]
 
 const MOUSE_HELP = <tbody>
     <tr>
@@ -63,6 +76,8 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
 
         this.state = {
             colorPopupActive: false,
+            roughnessPopupActive: false,
+            materialPopupActive: false,
         };
     }
 
@@ -85,16 +100,47 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
     }
 
     @bind
+    private handleActiveMaterialChange(newValue: number): void
+    {
+        this.props.onChangeEditorState({
+            ... this.props.editorState,
+            activeMaterial: newValue,
+        });
+    }
+
+    @bind
+    private handleActiveRoughnessChange(newValue: number): void
+    {
+        this.props.onChangeEditorState({
+            ... this.props.editorState,
+            activeRoughness: Math.round(newValue * 63),
+        });
+    }
+
+    @bind
     private handleShowColorPopup(): void { this.setState({ colorPopupActive: true }); }
 
     @bind
     private handleDismissColorPopup(): void { this.setState({ colorPopupActive: false }); }
+
+    @bind
+    private handleShowRoughnessPopup(): void { this.setState({ roughnessPopupActive: true }); }
+
+    @bind
+    private handleDismissRoughnessPopup(): void { this.setState({ roughnessPopupActive: false }); }
+
+    @bind
+    private handleShowMaterialPopup(): void { this.setState({ materialPopupActive: true }); }
+
+    @bind
+    private handleDismissMaterialPopup(): void { this.setState({ materialPopupActive: false }); }
 
     render()
     {
         const {props, state} = this;
         const {editorState} = props;
 
+        const NumberRadioList: new() => RadioList<number> = RadioList as any;
         const DisplayModeRadioList: new() => RadioList<DisplayMode> = RadioList as any;
 
         return <div className={classNames.wrapper}>
@@ -114,6 +160,52 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
                         <ColorPicker
                             value={props.editorState.activeColor}
                             onChange={this.handleActiveColorChange}
+                            />
+                    </PopupFrame>
+                </div>
+
+                <input
+                    id='toolbar-roughness'
+                    type='checkbox'
+                    onChange={this.handleShowRoughnessPopup}
+                    checked={state.roughnessPopupActive} />
+                <label htmlFor='toolbar-roughness' className={classNames.toolbarRoughness}>
+                    <span>
+                        <PureCssPie value={(editorState.activeRoughness + 1) / 64} />
+                    </span>
+                </label>
+                <div className={classNames.roughnessPopup}>
+                    <PopupFrame
+                        active={state.roughnessPopupActive}
+                        onDismiss={this.handleDismissRoughnessPopup}>
+                        <label>Roughness</label>
+                        <Slider
+                            value={editorState.activeRoughness / 63}
+                            onChange={this.handleActiveRoughnessChange}
+                            />
+                    </PopupFrame>
+                </div>
+
+                <input
+                    id='toolbar-material'
+                    type='checkbox'
+                    onChange={this.handleShowMaterialPopup}
+                    checked={state.materialPopupActive} />
+                <label htmlFor='toolbar-material' className={classNames.toolbarMaterial}>
+                    <span className={[
+                        classNames.toolbarMaterialDielectric,
+                        classNames.toolbarMaterialMetal,
+                    ][editorState.activeMaterial]} />
+                </label>
+                <div className={classNames.materialPopup}>
+                    <PopupFrame
+                        active={state.materialPopupActive}
+                        onDismiss={this.handleDismissMaterialPopup}>
+                        <NumberRadioList
+                            items={MATERIAL_LIST}
+                            className={radioListClassNames.buttonsHorizontal}
+                            value={editorState.activeMaterial}
+                            onChange={this.handleActiveMaterialChange}
                             />
                     </PopupFrame>
                 </div>
