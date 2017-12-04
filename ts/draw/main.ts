@@ -7,6 +7,7 @@
 import { LogManager } from "../utils/logger";
 import { Profiler, ProfilerResult } from "./profiler";
 import { RenderPipeline, RenderOperation, dumpRenderOperationAsDot } from "./scheduler";
+import { TextureRenderBufferFormat } from './renderbuffer';
 import { GLContext } from "./globjs/context";
 import { TOPICS } from "./log";
 import { WorkerClient } from '../utils/workerboot';
@@ -23,6 +24,7 @@ import { GlobalLightingPass } from './passes/globallighting';
 import { GizmoPass } from './passes/gizmo';
 import { VisualizeColorBufferPass } from './passes/visualize';
 import { SsaoPass } from './passes/ssao/toplevel';
+import { TemporalRerojectionPass } from './passes/reproject';
 
 import { Scene, CameraImageData } from './model';
 import { VoxelData, VoxelDataManager } from './voxeldata';
@@ -39,6 +41,7 @@ export class Renderer
 
     private readonly presentPass: PresentPass;
     private readonly raytracePass: RaytracePass;
+    private readonly reprojectPass: TemporalRerojectionPass;
     private readonly ssaoPass: SsaoPass;
     private readonly globalLightingPass: GlobalLightingPass;
     private readonly gizmoPass: GizmoPass;
@@ -85,6 +88,7 @@ export class Renderer
 
         this.presentPass = new PresentPass(this.context);
         this.raytracePass = new RaytracePass(this);
+        this.reprojectPass = new TemporalRerojectionPass(this);
         this.ssaoPass = new SsaoPass(this);
         this.globalLightingPass = new GlobalLightingPass(this);
         this.gizmoPass = new GizmoPass(this);
@@ -106,6 +110,7 @@ export class Renderer
 
         this.presentPass.dispose();
         this.raytracePass.dispose();
+        this.reprojectPass.dispose();
         this.ssaoPass.dispose();
         this.globalLightingPass.dispose();
         this.gizmoPass.dispose();
@@ -128,9 +133,13 @@ export class Renderer
             ops,
         );
 
-        const ssao = this.ssaoPass.setup(g1, ops);
+        const { reprojected, chain } = this.reprojectPass.setupReproject(g1, TextureRenderBufferFormat.RGBA8, ops);
 
-        const lit = this.globalLightingPass.setup(g1, ssao, ops);
+        const ssao = this.ssaoPass.setup(g1, reprojected, ops);
+
+        let lit = this.globalLightingPass.setup(g1, ssao, ops);
+
+        lit = this.reprojectPass.setupSave(lit, chain, ops);
 
         const litWithGizmos = this.gizmoPass.setup(g1, lit, ops);
 

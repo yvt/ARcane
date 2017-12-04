@@ -62,7 +62,13 @@ void main() {
         return;
     }
 
-    mediump float ssao = texture2D(ssaoTexture, v_TexCoord).x;
+    mediump vec4 ssao_radiosity = texture2D(ssaoTexture, v_TexCoord);
+    mediump float ssao = ssao_radiosity.w;
+    mediump vec3 radiosity = ssao_radiosity.xyz;
+
+    // Linearize & enhance
+    radiosity *= radiosity;
+
     const mediump float floor_diffuse = 0.1;
 
     if (g1.z == -1.0) {
@@ -171,23 +177,23 @@ void main() {
     mediump float env_image_spec_lod = min(6.0 - 6.5 * gloss, 4.0);
     mediump vec3 env_image_specular = textureCubeLodEXT(envTexture, es_reflection, env_image_spec_lod).xyz;
     env_image_specular *= env_image_specular; // gamma correction
-    accumulated += env_image_specular * env_specular * ssao;
+    accumulated += (env_image_specular * ssao + radiosity) * env_specular;
 #else
     mediump vec3 env_image = mix(floor_color * 0.4, scene_color * 0.6, ws_normal.y * 0.5 + 0.5);
-    accumulated += env_image * env_specular * ssao;
+    accumulated += (env_image * ssao + radiosity) * env_specular;
 #endif
 
     // ### Diffuse
     if (!metallic) {
-        mediump vec3 env_diffuse = base_color * ((1.0 - env_specular_dielectric) * ssao);
+        mediump vec3 env_diffuse = base_color * (1.0 - env_specular_dielectric);
 #if ENABLE_AR
         mediump vec3 es_normal = (u_WorldToEnvMatrix * vec4(ws_normal, 0.0)).xyz;
         mediump vec3 es_img_diffuse = textureCubeLodEXT(envTexture, es_normal, 4.0).xyz;
         es_img_diffuse *= es_img_diffuse; // gamma correction
-        accumulated += es_img_diffuse * env_diffuse;
+        accumulated += (es_img_diffuse * ssao + radiosity) * env_diffuse;
 #else
         // (Use the same `env_image` for now...)
-        accumulated += env_image * env_diffuse;
+        accumulated += (env_image * ssao + radiosity) * env_diffuse;
 #endif
     }
 

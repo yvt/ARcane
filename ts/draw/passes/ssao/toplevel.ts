@@ -54,9 +54,9 @@ export class SsaoPass
         this.bilateralPass.dispose();
     }
 
-    setup(g1: TextureRenderBufferInfo, ops: RenderOperation<GLContext>[]): TextureRenderBufferInfo
+    setup(g1: TextureRenderBufferInfo, color: TextureRenderBufferInfo, ops: RenderOperation<GLContext>[]): TextureRenderBufferInfo
     {
-        let buffer = this.generatePass.setup(g1, ops);
+        let buffer = this.generatePass.setup(g1, color, ops);
         buffer = this.bilateralPass.setup(buffer, g1, 'horizontal', ops);
         buffer = this.bilateralPass.setup(buffer, g1, 'vertical', ops);
         return buffer;

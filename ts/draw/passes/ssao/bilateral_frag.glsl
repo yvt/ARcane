@@ -45,12 +45,13 @@ void main() {
     }
 
     // Estimate the clip space gradient
-    mediump float cs_dz_dx = minabs(cs_depths[5] - cs_depths[4], cs_depths[4] - cs_depths[3]);
+    mediump float cs_dz_dx = minabs(cs_depths[6] - cs_depths[4], cs_depths[4] - cs_depths[2]) * 0.5;
 
     // Compute the result
-    mediump vec2 sum = vec2(0.00000001);
+    mediump vec4 sum = vec4(0.00000001);
+    mediump float sum_weight = 0.00000001;
 
-    const mediump float depth_coef = 1.0;
+    const mediump float depth_coef = 0.5;
     const mediump float position_coef = 0.2;
 
     for (lowp int i = 0; i < 8; ++i) {
@@ -59,11 +60,11 @@ void main() {
         mediump float cs_depth = cs_depths[i];
         mediump float diff = (cs_plane_depth - cs_depth) * depth_coef;
         mediump float weight = exp2(-diff * diff - x * x * position_coef);
-        mediump float color = texture2D(inputTexture, ts_pos[i]).x;
-        sum += vec2(color, 1.0) * weight;
+        mediump vec4 color = texture2D(inputTexture, ts_pos[i]);
+        sum += color * weight;
+        sum_weight += weight;
     }
 
-    mediump float average = sum.x / sum.y;
-    gl_FragColor.xyz = vec3(average);
-    gl_FragColor.w = 1.0;
+    mediump vec4 average = sum / sum_weight;
+    gl_FragColor = average;
 }

@@ -80,24 +80,25 @@ export class SsaoGeneratePass
         gl.deleteTexture(this.ditherTexture);
     }
 
-    setup(g1: TextureRenderBufferInfo, ops: RenderOperation<GLContext>[]): TextureRenderBufferInfo
+    setup(g1: TextureRenderBufferInfo, color: TextureRenderBufferInfo, ops: RenderOperation<GLContext>[]): TextureRenderBufferInfo
     {
         const {width, height} = g1;
         const output = new TextureRenderBufferInfo(
-            "SSAO Result",
+            "SSAO+GI Result",
             width, height,
             TextureRenderBufferFormat.RGBA8,
         );
 
         ops.push({
-            inputs: { g1 },
+            inputs: { g1, color },
             outputs: { output },
             optionalOutputs: [],
-            name: "SSAO",
+            name: "SSAO+GI",
             factory: (cfg) => new SsaoOperator(
                 this,
                 downcast(TextureRenderBuffer, cfg.outputs['output']),
                 downcast(TextureRenderBuffer, cfg.inputs['g1']),
+                downcast(TextureRenderBuffer, cfg.inputs['color']),
             ),
         });
 
@@ -114,6 +115,7 @@ class SsaoOperator implements RenderOperator
         private pass: SsaoGeneratePass,
         private output: TextureRenderBuffer,
         private g1: TextureRenderBuffer,
+        private color: TextureRenderBuffer,
     )
     {
         this.shaderParams = pass.shaderInstance.createParameter();
@@ -146,6 +148,7 @@ class SsaoOperator implements RenderOperator
 
         params.g1Texture.texture = this.g1.texture;
         params.ditherTexture.texture = this.pass.ditherTexture;
+        params.colorTexture.texture = this.color.texture;
 
         vec2.set(params.tsPixelOffset, 1 / this.g1.width, 1 / this.g1.height);
         vec2.set(params.ditherTexCoordFactor, this.g1.width / 4, this.g1.height / 4);
@@ -176,6 +179,7 @@ interface SsaoShaderParam
     invProjMat: mat4;
     g1Texture: TextureShaderParameter;
     ditherTexture: TextureShaderParameter;
+    colorTexture: TextureShaderParameter;
     tsPixelOffset: vec2;
     ditherTexCoordFactor: vec2;
     tsSampleOffsetFactor: vec2;
@@ -190,6 +194,7 @@ class SsaoShaderModule extends ShaderModule<SsaoShaderInstance, SsaoShaderParam>
         u_TSSampleOffsetFactor: string;
         g1Texture: string;
         ditherTexture: string;
+        colorTexture: string;
         complexMultiply: string;
         PI: string;
     }>(fragModule);
@@ -209,6 +214,7 @@ class SsaoShaderModule extends ShaderModule<SsaoShaderInstance, SsaoShaderParam>
 
     readonly g1Texture: Texture2DShaderObject;
     readonly ditherTexture: Texture2DShaderObject;
+    readonly colorTexture: Texture2DShaderObject;
 
     constructor(builder: ShaderBuilder)
     {
@@ -219,11 +225,13 @@ class SsaoShaderModule extends ShaderModule<SsaoShaderInstance, SsaoShaderParam>
 
         this.g1Texture = new Texture2DShaderObject(builder, 'mediump');
         this.ditherTexture = new Texture2DShaderObject(builder, 'mediump');
+        this.colorTexture = new Texture2DShaderObject(builder, 'mediump');
 
         this.fragChunk.bind({
             // child object
             g1Texture: this.g1Texture.u_Texture,
             ditherTexture: this.ditherTexture.u_Texture,
+            colorTexture: this.colorTexture.u_Texture,
 
             // library
             complexMultiply: complexnum.multiply,
@@ -250,6 +258,7 @@ class SsaoShaderInstance extends ShaderModuleInstance<SsaoShaderParam>
 
     private readonly g1Texture: Texture2DShaderInstance;
     private readonly ditherTexture: Texture2DShaderInstance;
+    private readonly colorTexture: Texture2DShaderInstance;
 
     private readonly u_ProjMat: WebGLUniformLocation;
     private readonly u_InvProjMat: WebGLUniformLocation;
@@ -272,6 +281,7 @@ class SsaoShaderInstance extends ShaderModuleInstance<SsaoShaderParam>
 
         this.g1Texture = builder.getUnwrap(parent.g1Texture);
         this.ditherTexture = builder.getUnwrap(parent.ditherTexture);
+        this.colorTexture = builder.getUnwrap(parent.colorTexture);
     }
 
     createParameter(builder: ShaderParameterBuilder): SsaoShaderParam
@@ -281,6 +291,7 @@ class SsaoShaderInstance extends ShaderModuleInstance<SsaoShaderParam>
             invProjMat: mat4.create(),
             g1Texture: builder.getUnwrap(this.g1Texture),
             ditherTexture: builder.getUnwrap(this.ditherTexture),
+            colorTexture: builder.getUnwrap(this.colorTexture),
             tsPixelOffset: vec2.create(),
             ditherTexCoordFactor: vec2.create(),
             tsSampleOffsetFactor: vec2.create(),

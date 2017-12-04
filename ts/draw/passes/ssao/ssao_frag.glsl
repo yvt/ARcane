@@ -19,6 +19,7 @@
 // imports
 #pragma global g1Texture        // (highp vec2) -> mediump vec4
 #pragma global ditherTexture    // (highp vec2) -> mediump vec4
+#pragma global colorTexture     // (highp vec2) -> mediump vec4
 #pragma global complexMultiply  // (mediump vec2, mediump vec2) -> mediump vec2
 #pragma global PI               // {float literal}
 
@@ -135,7 +136,9 @@ void main() {
     const mediump float decay_factor = 0.92;
 
     mediump float result = 0.0;
-    mediump float decay = 0.5;
+    mediump float decay = 1.0;
+
+    mediump vec3 result_gi = vec3(0.0);
 
     for (lowp int i = 0; i < 8; ++i) {
         // The kernel size is constant in the texture space.
@@ -160,7 +163,12 @@ void main() {
         // occlusion... It nonetheless does produces a somewhat visually
         // pleasant result.
         // (This SSAO implementation is based on Hyper3D, by the way.)
-        result += (max(result, sample_cos) - result) * decay * depth_decay;
+        mediump float effect = (max(result, sample_cos) - result) * decay * depth_decay;
+        result += effect;
+
+        // Radiosity approximation
+        mediump vec3 color = texture2D(colorTexture, ts_sample).xyz;
+        result_gi += effect * (color * color);
 
         // Move on to the next sample.
         sample_dist += 1.0 + sample_dist * 0.3;
@@ -168,6 +176,6 @@ void main() {
         decay *= decay_factor;
     }
 
-    gl_FragColor.xyz = vec3(1.0 - result);
-    gl_FragColor.w = 1.0;
+    gl_FragColor.w = 1.0 - result;
+    gl_FragColor.xyz = sqrt(result_gi);
 }
