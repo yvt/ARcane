@@ -20,10 +20,14 @@ export class PackShaderModule extends ShaderModule<PackShaderInstance, {}>
     private readonly pieChunk = new PieShaderChunk<{
         u14fp16Encode: string;
         u14fp16Decode: string;
+        cubeFaceFromIndex: string;
+        cubeFaceToNormal: string;
     }>(pieModule);
 
     readonly u14fp16Encode = this.pieChunk.bindings.u14fp16Encode;
     readonly u14fp16Decode = this.pieChunk.bindings.u14fp16Decode;
+    readonly cubeFaceFromIndex = this.pieChunk.bindings.cubeFaceFromIndex;
+    readonly cubeFaceToNormal = this.pieChunk.bindings.cubeFaceToNormal;
 
     constructor(builder: ShaderBuilder)
     {

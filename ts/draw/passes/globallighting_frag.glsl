@@ -23,6 +23,8 @@
 #pragma global fetchVoxelDensity
 #pragma global fetchVoxelMaterial
 #pragma global PI
+#pragma global u14fp16Decode
+#pragma global cubeFaceToNormal
 
 // private
 #pragma global fetchEnvImage
@@ -74,7 +76,17 @@ void main() {
         return;
     }
 
-    mediump vec3 hit_voxel = floor(g1.yzw);
+    // Extract the attributes from G1
+    mediump float u14a = u14fp16Decode(g1.y);
+    mediump float u14b = u14fp16Decode(g1.z);
+
+    mediump vec3 hit_voxel;
+    hit_voxel.x = fract(u14a / 1024.0) * 1024.0;
+    hit_voxel.z = fract(u14b / 1024.0) * 1024.0;
+    hit_voxel.y = floor(u14a / 1024.0) + floor(u14b / 1024.0) * 16.0;
+
+    bool receieve_light = g1.w > 4.0;
+    mediump vec3 ws_normal = cubeFaceToNormal(g1.w - (receieve_light ? 8.0 : 0.0));
 
     // # Fetch and decode material data
     mediump vec4 material = fetchVoxelMaterial(hit_voxel);
@@ -86,19 +98,6 @@ void main() {
 
     bool metallic = material_id != 0.0;
 
-    // # Derive the normal using the partial derivatives
-    mediump vec3 neighbor1 = vec3(
-        fetchVoxelDensity(hit_voxel + vec3(1.0, 0.0, 0.0), 0.0),
-        fetchVoxelDensity(hit_voxel + vec3(0.0, 1.0, 0.0), 0.0),
-        fetchVoxelDensity(hit_voxel + vec3(0.0, 0.0, 1.0), 0.0)
-    );
-    mediump vec3 neighbor2 = vec3(
-        fetchVoxelDensity(hit_voxel - vec3(1.0, 0.0, 0.0), 0.0),
-        fetchVoxelDensity(hit_voxel - vec3(0.0, 1.0, 0.0), 0.0),
-        fetchVoxelDensity(hit_voxel - vec3(0.0, 0.0, 1.0), 0.0)
-    );
-    mediump vec3 ws_normal = normalize(neighbor2 - neighbor1);
-
     // # Perform shading
     mediump vec3 ws_view = -normalize(v_WSView); // Oriented so that dot(ws_view, ws_normal) >= 0
     mediump vec3 accumulated = vec3(0.0);
@@ -106,7 +105,7 @@ void main() {
 
     // ## Punctual light
     mediump float dot_nl = dot(ws_normal, ws_light_dir);
-    if (dot_nl >= 0.0) {
+    if (dot_nl >= 0.0 && !receieve_light) {
         // ### Distribute the energy to diffuse and specular BRDF
         mediump vec3 ws_half = normalize(ws_view + ws_light_dir);
         mediump float fresnel = pow(1.0 - dot(ws_half, ws_light_dir), 5.0);
@@ -156,7 +155,6 @@ void main() {
     //     → (4∫Env(l)Denv(h)cos(ω)dω)(∫BRDFenv(l, v, h)cos(ω)dω)
     //
     // [Kar13]: http://blog.selfshadow.com/publications/s2013-shading-course/
-    mediump vec3 env_image = mix(floor_color * 0.4, scene_color * 0.6, ws_normal.y * 0.5 + 0.5);
     mediump vec4 env_t = vec4(0.0, 0.0, -0.015625, 0.75) +
         vec4(1.0 / 0.96, 0.475, 0.0182292, 0.25) * gloss;
     mediump float env_a0 = env_t.x * min(env_t.y, exp2(-9.28 * dot_nv)) + env_t.z;
@@ -173,9 +171,10 @@ void main() {
     mediump float env_image_spec_lod = min(6.0 - 6.5 * gloss, 4.0);
     mediump vec3 env_image_specular = textureCubeLodEXT(envTexture, es_reflection, env_image_spec_lod).xyz;
     env_image_specular *= env_image_specular; // gamma correction
-    accumulated += env_image_specular * env_specular;
+    accumulated += env_image_specular * env_specular * ssao;
 #else
-    accumulated += env_image * env_specular;
+    mediump vec3 env_image = mix(floor_color * 0.4, scene_color * 0.6, ws_normal.y * 0.5 + 0.5);
+    accumulated += env_image * env_specular * ssao;
 #endif
 
     // ### Diffuse

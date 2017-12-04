@@ -63,8 +63,7 @@ export function createEditorState(): EditorState
             for (let z = 0; z < 256; ++z) {
                 for (let y = 0; y < 256; ++y) {
                     for (let x = 0; x < 256; ++x) {
-                        let v = Math.sin(x / 20) + Math.sin(y / 20) + Math.cos(z / 20)
-                            + Math.sin(x / 7) * 0.5 + Math.sin(y / 3) * 0.1 + Math.sin(z / 55) * 0.5;
+                        let v = Math.sin(x / 20) + Math.sin(y / 20) + Math.cos(z / 20) + Math.sin((x ^ y ^ z) * .1) * 0.5;
                         v *= Math.max(0, 128 * 128 - Math.pow(x - 128, 2) - Math.pow(y - 128, 2) - Math.pow(z - 128, 2)) / 128 / 128;
                         v += (v - 0.5) * 4;
                         v = Math.max(Math.min(v * 255 | 0, 255), 0);
@@ -73,7 +72,7 @@ export function createEditorState(): EditorState
 
                         const gloss = Math.min((z + Math.random() * 4) >> 2, 63);
                         const material = x > 128 ? 1 /* metallic */ : 0 /* dielectric */;
-                        mat[mapIndex(x, y, z)] = (x > 128 ? 0xa0a0a0 : 0x302020) | (gloss << 24) | (material << 30);
+                        mat[mapIndex(x, y, z)] = (x > 128 ? 0xa0a0a0 : 0x8090f0) | (gloss << 24) | (material << 30);
                     }
                 }
             }

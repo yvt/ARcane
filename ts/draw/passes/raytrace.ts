@@ -35,6 +35,7 @@ const raytraceVertModule: PieShaderModule = require('./raytrace_vert.glsl');
 import {
     VoxelDataShaderObject, VoxelDataShaderInstance, VoxelDataShaderParam
 } from '../shaderutils/voxel';
+import { PackShaderModuleFactory } from '../shaderutils/pack';
 
 export interface RaytraceContext
 {
@@ -171,6 +172,9 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
         u_ViewProjMat: string;
         u_DepthRange: string;
         fetchVoxelDensity: string;
+        u14fp16Encode: string;
+        cubeFaceFromIndex: string;
+        cubeFaceToNormal: string;
         SKIP_MODEL: string;
     }>(raytraceFragModule);
     private readonly vertChunk = new PieShaderChunk<{
@@ -192,9 +196,16 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
 
         this.voxelData = new VoxelDataShaderObject(builder);
 
+        const pack = builder.requireModule(PackShaderModuleFactory);
+
         this.fragChunk.bind({
             // child object
             fetchVoxelDensity: this.voxelData.fetchVoxelDensity,
+
+            // library functions
+            u14fp16Encode: pack.u14fp16Encode,
+            cubeFaceFromIndex: pack.cubeFaceFromIndex,
+            cubeFaceToNormal: pack.cubeFaceToNormal,
 
             // static parameters
             SKIP_MODEL: String(flags & ShaderFlags.SKIP_MODEL),

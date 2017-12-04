@@ -12,6 +12,9 @@
 
 // imports
 #pragma global fetchVoxelDensity
+#pragma global u14fp16Encode
+#pragma global cubeFaceFromIndex
+#pragma global cubeFaceToNormal
 
 // varyings
 #pragma global v_RayStart
@@ -57,7 +60,8 @@ bool voxelTrace(
     highp vec3 rayStart,
     highp vec3 rayEnd,
     out highp vec3 hitVoxel,
-    out highp vec3 hitPosition
+    out highp vec3 hitPosition,
+    out mediump float hitNormalIndex
 ) {
 #if SKIP_MODEL
     return false;
@@ -70,6 +74,8 @@ bool voxelTrace(
     clipRay(rayStart, rayEnd, rayDir, vec3(0.0, -1.0, 0.0), 256.0);
     clipRay(rayStart, rayEnd, rayDir, vec3(0.0, 0.0, 1.0), 0.0);
     clipRay(rayStart, rayEnd, rayDir, vec3(0.0, 0.0, -1.0), 256.0);
+
+    hitNormalIndex = -16.0;
 
     if (dot(rayEnd - rayStart, rayDir) <= 0.0) {
         return false;
@@ -128,12 +134,21 @@ bool voxelTrace(
         if (minPlaneT == nextPlaneT.x) {
             voxel.x = nextPlane.x + min(sign(rayDir.x), 0.0);
             minPlaneCoord = nextPlane.x;
+            hitNormalIndex = rayDir.x >= 0.0
+                ? cubeFaceFromIndex(1.0)
+                : cubeFaceFromIndex(0.0); // neg-/pos-x
         } else if (minPlaneT == nextPlaneT.y) {
             voxel.y = nextPlane.y + min(sign(rayDir.y), 0.0);
             minPlaneCoord = nextPlane.y;
+            hitNormalIndex = rayDir.y >= 0.0
+                ? cubeFaceFromIndex(3.0)
+                : cubeFaceFromIndex(2.0); // neg-/pos-y
         } else /* if (minPlaneT == nextPlaneT.z) */ {
             voxel.z = nextPlane.z + min(sign(rayDir.z), 0.0);
             minPlaneCoord = nextPlane.z;
+            hitNormalIndex = rayDir.z >= 0.0
+                ? cubeFaceFromIndex(5.0)
+                : cubeFaceFromIndex(4.0); // neg-/pos-z
         }
 
         // Go back to the higher mip level as needed
@@ -172,18 +187,38 @@ void main() {
     highp vec3 rayEnd = v_RayEnd.xyz / v_RayEnd.w;
 
     highp vec3 hitVoxel, hitPosition;
+    mediump float hitNormalIndex;
     if (voxelTrace(
         rayStart,
         rayEnd,
         /* out */ hitVoxel,
-        /* out */ hitPosition
+        /* out */ hitPosition,
+        /* out */ hitNormalIndex
     )) {
         // Make sure the integral part of hit position is inside the voxel
         // (with FP16 precision)
         highp vec3 hitPositionRounded = clamp(hitPosition, hitVoxel, hitVoxel + (1.0 - 1.0 / 8.0));
 
         // Construct the GBuffer1 data
-        gl_FragColor.yzw = hitPositionRounded;
+        // `u14a[7:0] = hitVoxel.x, u14a[13:10] = hitVoxel.y[3:0]`
+        gl_FragColor.y = u14fp16Encode(hitVoxel.x + fract(hitVoxel.y / 16.0) * 16.0 * 1024.0);
+        // `u14b[7:0] = hitVoxel.z, u14b[13:10] = hitVoxel.y[7:4]`
+        gl_FragColor.z = u14fp16Encode(hitVoxel.z + floor(hitVoxel.y / 16.0) * 1024.0);
+
+        gl_FragColor.w = hitNormalIndex;
+
+        // Punctual light shadow ray tracing
+        mediump vec3 ws_light_dir = normalize(vec3(0.3, 1.0, 0.3));
+        mediump vec3 dummy;
+        if (voxelTrace(
+            hitPosition + cubeFaceToNormal(hitNormalIndex) * 0.01,
+            hitPosition + ws_light_dir * 400.0,
+            /* out */ hitVoxel,
+            /* out */ dummy,
+            /* out */ hitNormalIndex
+        )) {
+            gl_FragColor.w += 8.0;
+        }
     } else {
         mediump vec3 rayDir = normalize(rayEnd - rayStart);
         const mediump float horizon = -0.01;

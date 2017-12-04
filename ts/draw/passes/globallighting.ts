@@ -42,6 +42,7 @@ import {
     TextureCubeShaderObject, TextureCubeShaderInstance,
 } from '../shaderutils/texture';
 import { ConstantsShaderModuleFactory } from '../shaderutils/constants';
+import { PackShaderModuleFactory } from '../shaderutils/pack';
 
 export interface GlobalLightingContext
 {
@@ -208,6 +209,8 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
         fetchVoxelDensity: string;
         fetchVoxelMaterial: string;
         PI: string;
+        u14fp16Decode: string;
+        cubeFaceToNormal: string;
     }>(globalLightingFragModule);
     private readonly vertChunk = new PieShaderChunk<{
         ENABLE_AR: string;
@@ -242,6 +245,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
         this.voxelData = new VoxelDataShaderObject(builder);
 
         const constants = builder.requireModule(ConstantsShaderModuleFactory);
+        const pack = builder.requireModule(PackShaderModuleFactory);
 
         this.fragChunk.bind({
             // child object
@@ -252,6 +256,10 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
             fetchVoxelDensity: this.voxelData.fetchVoxelDensity,
             fetchVoxelMaterial: this.voxelData.fetchVoxelMaterial,
             PI: constants.PI,
+
+            // library functions
+            u14fp16Decode: pack.u14fp16Decode,
+            cubeFaceToNormal: pack.cubeFaceToNormal,
 
             // static parameters
             ENABLE_AR: String(flags & ShaderFlags.ENABLE_AR),
