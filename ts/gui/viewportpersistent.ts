@@ -105,7 +105,8 @@ export class ViewportPersistent implements IDisposable
         this.log = logManager.getLogger('viewport-persistent');
         this.ar = new ARMain(logManager);
 
-        const context = this.canvas.getContext('webgl');
+        const context = this.canvas.getContext('webgl') ||
+            this.canvas.getContext('experimental-webgl');
         if (!context) {
             throw new Error("failed to create a WebGL context.");
         }
