@@ -70,9 +70,10 @@ export function createEditorState(): EditorState
 
                         dens[mapIndex(x, y, z)] = v;
 
-                        const gloss = Math.min((z + Math.random() * 4) >> 2, 63);
+                        const gloss = Math.min((z * 1.5 + Math.random() * (4 + Math.random() * 128)) >> 3, 63);
                         const material = x > 128 ? 1 /* metallic */ : 0 /* dielectric */;
-                        mat[mapIndex(x, y, z)] = (x > 128 ? 0xa0a0a0 : 0x8090f0) | (gloss << 24) | (material << 30);
+                        mat[mapIndex(x, y, z)] = (Math.random() * 0x1000000 & 0xf0f0f |
+                            (x > 128 ? 0x203080 : 0x80a0d0)) | (gloss << 24) | (material << 30);
                     }
                 }
             }
