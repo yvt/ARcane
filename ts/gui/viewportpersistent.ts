@@ -133,6 +133,32 @@ export class ViewportPersistent implements IDisposable
                 }
             }
         });
+        this.canvas.addEventListener('wheel', (e) => {
+            this.listener && this.listener.handleEditorStateUpdate(oldState => {
+                let dist = oldState.camera.distance;
+                let delta = e.deltaY;
+                switch (e.deltaMode) {
+                    case WheelEvent.DOM_DELTA_PIXEL:
+                        break;
+                    case WheelEvent.DOM_DELTA_LINE:
+                        delta *= 5;
+                        break;
+                    case WheelEvent.DOM_DELTA_PIXEL:
+                        delta *= 20;
+                        break;
+                }
+                dist *= Math.exp(delta * 0.01);
+                dist = Math.max(Math.min(dist, 300), 0.1);
+                e.preventDefault();
+                return {
+                    ...oldState,
+                    camera: {
+                        ...oldState.camera,
+                        distance: dist,
+                    },
+                };
+            });
+        });
 
         // Prevent right click (because we use it for camera manipulation)
         this.canvas.addEventListener('contextmenu', (e) => {
@@ -329,7 +355,7 @@ export class ViewportPersistent implements IDisposable
         this.stopwatch.reset();
 
         // Apply a 1st-order low pass filter to the camera parameter
-        const coef = 1 - Math.pow(0.01, dt);
+        const coef = 1 - Math.pow(0.0002, dt);
         if (this.smoothedCamera) {
             this.smoothedCamera = {
                 center: vec3.lerp(vec3.create(), this.smoothedCamera.center, camera.center, coef),
