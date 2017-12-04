@@ -36,7 +36,7 @@ const STYLE_ITEMS = [{
     label: 'Disc',
 }, {
     value: 'hsv' as Style,
-    label: 'HSV',
+    label: 'Square',
 }, {
     value: 'rgb' as Style,
     label: 'RGB',
@@ -82,13 +82,42 @@ export class ColorPicker extends React.PureComponent<ColorPickerProps, State>
         this.props.onChange(new UIHsvColor(hsv.hue, hsv.saturation, newValue, hsv.alpha));
     }
 
+    @bind
+    private handleRedChange(newValue: number): void
+    {
+        const rgb = this.props.value.toRgb();
+        this.props.onChange(new UIRgbColor(newValue, rgb.green, rgb.blue, rgb.alpha));
+    }
+
+    @bind
+    private handleGreenChange(newValue: number): void
+    {
+        const rgb = this.props.value.toRgb();
+        this.props.onChange(new UIRgbColor(rgb.red, newValue, rgb.blue, rgb.alpha));
+    }
+
+    @bind
+    private handleBlueChange(newValue: number): void
+    {
+        const rgb = this.props.value.toRgb();
+        this.props.onChange(new UIRgbColor(rgb.red, rgb.green, newValue, rgb.alpha));
+    }
+
     render()
     {
         const {props, state} = this;
         const hsv = props.value.toHsv();
+        const rgb = props.value.toRgb();
 
         const sat1 = new UIHsvColor(hsv.hue, 0, hsv.value, 1).toRgb().toCss();
         const sat2 = new UIHsvColor(hsv.hue, 1, hsv.value, 1).toRgb().toCss();
+
+        const red1 = new UIRgbColor(0, rgb.green, rgb.blue, 1).toCss();
+        const red2 = new UIRgbColor(1, rgb.green, rgb.blue, 1).toCss();
+        const green1 = new UIRgbColor(rgb.red, 0, rgb.blue, 1).toCss();
+        const green2 = new UIRgbColor(rgb.red, 1, rgb.blue, 1).toCss();
+        const blue1 = new UIRgbColor(rgb.red, rgb.green, 0, 1).toCss();
+        const blue2 = new UIRgbColor(rgb.red, rgb.green, 1, 1).toCss();
 
         const val2 = new UIHsvColor(hsv.hue, hsv.saturation, 1, 1).toRgb().toCss();
 
@@ -103,16 +132,46 @@ export class ColorPicker extends React.PureComponent<ColorPickerProps, State>
                 onChange={this.handleStyleChange}
                 className={radioListClassNames.buttonsHorizontal}
                 />
-            <ColorDisc value={hsv} onChange={props.onChange} />
+            <ColorDisc
+                value={hsv}
+                onChange={props.onChange}
+                style={{display: state.style === 'disc' ? 'block' : 'none'}}
+                />
+            <SvPlane
+                value={hsv}
+                onChange={props.onChange}
+                style={{display: state.style === 'hsv' ? 'block' : 'none'}}
+                />
+            <div style={{display: state.style === 'rgb' ? 'block' : 'none'}}>
+                <Slider
+                    value={rgb.red} onChange={this.handleRedChange}
+                    className={classNames.slider}
+                    trackStyle={{'background': `linear-gradient(90deg, ${red1}, ${red2})`}}
+                    trackClassName={classNames.track} />
+                <Slider
+                    value={rgb.green} onChange={this.handleGreenChange}
+                    className={classNames.slider}
+                    trackStyle={{'background': `linear-gradient(90deg, ${green1}, ${green2})`}}
+                    trackClassName={classNames.track} />
+                <Slider
+                    value={rgb.blue} onChange={this.handleBlueChange}
+                    className={classNames.slider}
+                    trackStyle={{'background': `linear-gradient(90deg, ${blue1}, ${blue2})`}}
+                    trackClassName={classNames.track} />
+                <hr />
+            </div>
             <Slider
                 value={hsv.hue / 6} onChange={this.handleHueChange}
+                className={classNames.slider}
                 trackClassName={classNames.hueSliderTrack} />
             <Slider
                 value={hsv.saturation} onChange={this.handleSaturationChange}
+                className={classNames.slider}
                 trackStyle={{'background': `linear-gradient(90deg, ${sat1}, ${sat2})`}}
                 trackClassName={classNames.track} />
             <Slider
                 value={hsv.value} onChange={this.handleValueChange}
+                className={classNames.slider}
                 trackStyle={{'background': `linear-gradient(90deg, black, ${val2})`}}
                 trackClassName={classNames.track} />
         </div>;
@@ -250,6 +309,8 @@ interface ColorDiscProps
 {
     value: UIHsvColor;
 
+    style?: React.CSSProperties;
+
     onChange: (newValue: UIHsvColor) => void;
 }
 
@@ -385,7 +446,7 @@ class ColorDisc extends React.PureComponent<ColorDiscProps, {}>
 
         const fullBright = new UIHsvColor(hsv.hue, 1, 1, 1);
 
-        return <div className={classNames.colorDisc} ref={e => {this.box = e;}}>
+        return <div className={classNames.colorDisc} ref={e => {this.box = e;}} style={props.style}>
             <div>
                 {
                     renderDisc.map((render, i) => <Canvas
@@ -416,3 +477,86 @@ class ColorDisc extends React.PureComponent<ColorDiscProps, {}>
         </div>;
     }
 }
+
+interface SvPlaneProps
+{
+    value: UIHsvColor;
+
+    style?: React.CSSProperties;
+
+    onChange: (newValue: UIHsvColor) => void;
+}
+
+class SvPlane extends React.PureComponent<SvPlaneProps, {}>
+{
+    private box: HTMLDivElement | null = null;
+    private router: IDisposable | null = null;
+
+    componentDidMount(): void
+    {
+        const router = this.router = new MouseRouter(this.box!);
+        router.onMouseDown = (e, state) => {
+            if (e.which !== 1) {
+                return null;
+            }
+
+            const uv = [e.clientX, e.clientY];
+            this.mapCoord(uv);
+
+
+            router.onMouseMove!(e, {});
+            return {};
+        };
+        router.onMouseMove = (e, state) => {
+            e.preventDefault();
+
+            const uv = [e.clientX, e.clientY];
+            this.mapCoord(uv);
+
+            uv[0] = Math.max(Math.min(uv[0], 1), 0);
+            uv[1] = Math.max(Math.min(uv[1], 1), 0);
+
+            const hsv = this.props.value;
+            this.props.onChange(new UIHsvColor(hsv.hue, uv[0], uv[1], hsv.alpha));
+        };
+    }
+
+    private mapCoord(v: number[]): void
+    {
+        const bounds = this.box!.getBoundingClientRect();
+        v[0] = (v[0] - bounds.left) / bounds.width;
+        v[1] = (v[1] - bounds.top) / bounds.height;
+        v[1] = 1 - v[1];
+    }
+
+    componentWillUnmount(): void
+    {
+        if (this.router) {
+            this.router.dispose();
+            this.router = null;
+        }
+    }
+
+    render()
+    {
+        const {props} = this;
+        const hsv = props.value;
+
+        const fullBright = new UIHsvColor(hsv.hue, 1, 1, 1);
+
+        return <div className={classNames.svPlane} ref={e => {this.box = e;}} style={props.style}>
+            <div style={{
+                backgroundColor: fullBright.toRgb().toCss(),
+            }} />
+            <div /><div />
+            <div
+                className={classNames.svPlaneKnob}
+                style={{
+                    left: `${hsv.saturation * 100}%`,
+                    top: `${100 - hsv.value * 100}%`,
+                    backgroundColor: hsv.toRgb().toCss(),
+                }} />
+        </div>;
+    }
+}
+

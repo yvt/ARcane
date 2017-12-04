@@ -7,14 +7,20 @@
 .picker {
     width: 200px;
 
-    > div {
-        margin: 5px 0;
-    }
-
     > ul {
         text-align: center;
         margin: 10px 0;
     }
+
+    hr {
+        border: none;
+        border-top: 1px solid #888;
+        margin: 10px 5px;
+    }
+}
+
+.slider {
+    margin: 5px 0;
 }
 
 .hueSliderTrack {
@@ -69,7 +75,41 @@
 .colorDiscKnob {
     position: absolute;
     left: -11px; top: -11px;
-    will-change: transform, background;
+    will-change: transform, background-color;
+    width: 18px; height: 18px;
+    background: white;
+    border: 2px solid white;
+    border-radius: 50%;
+}
+
+// Saturation/value plane
+.svPlane {
+    position: relative;
+    width: 170px; height: 170px;
+    margin: 15px auto 5px !important;
+    cursor: pointer;
+
+    > div:not(.svPlaneKnob) {
+        position: absolute;
+        left: 0; top: 0;
+        width: 100%; height: 100%;
+    }
+
+    > div:nth-of-type(1) {
+        background: black;
+        will-change: background-color;
+    }
+    > div:nth-of-type(1) {
+        background: linear-gradient(90deg, rgba(255, 255, 255, 255), rgba(255, 255, 255, 0));
+    }
+    > div:nth-of-type(2) {
+        background: linear-gradient(0deg, rgba(0, 0, 0, 255), rgba(0, 0, 0, 0));
+    }
+}
+.svPlaneKnob {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    will-change: left, top, background-color;
     width: 18px; height: 18px;
     background: white;
     border: 2px solid white;
