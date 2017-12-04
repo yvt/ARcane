@@ -108,6 +108,12 @@ fn main() {
                 .takes_value(true)
                 .default_value("0.01"),
         )
+        .arg(
+            Arg::with_name("normalize")
+                .short("n")
+                .long("normalize")
+                .help("Scale the output values to range [0, 1]"),
+        )
         .get_matches();
 
     let input_files = CubeMapPathSet::from_one(Path::new(matches.value_of_os("input").unwrap()))
@@ -181,11 +187,7 @@ fn main() {
     let kernel_ratio = 2.0f32;
     let kernel_upsample = 3.0f32;
     let sigma1_limit = 1.0 / 2.0 / kernel_ratio;
-    let mut num_passes = (sigma * sigma / (sigma1_limit * sigma1_limit)).ceil() as usize;
-    if num_passes < 2 {
-        // Improve the quality of the blur by utilizing the central limit theorem
-        num_passes = 2;
-    }
+    let num_passes = (sigma * sigma / (sigma1_limit * sigma1_limit)).ceil() as usize;
     let sigma1 = (sigma * sigma / num_passes as f32).sqrt();
     let sigma1_pxs = sigma1 * size as f32;
     let kernel_radius = (sigma1_pxs * kernel_ratio * kernel_upsample).ceil() as usize;
@@ -221,6 +223,34 @@ fn main() {
             }
 
             swap(&mut images, &mut images2);
+        }
+    }
+
+    if matches.is_present("normalize") {
+        let max_value = images
+            .iter()
+            .map(|image| {
+                image
+                    .data
+                    .iter()
+                    .map(|pixel| {
+                        [
+                            pixel[0] / pixel[3],
+                            pixel[1] / pixel[3],
+                            pixel[2] / pixel[3],
+                        ].iter()
+                            .fold(0.0f32, |x, y| x.max(*y))
+                    })
+                    .fold(0.0f32, |x, y| x.max(y))
+            })
+            .fold(0.0f32, |x, y| x.max(y));
+        println!("Maximum value = {}", max_value);
+        for image in images.iter_mut() {
+            for x in image.data.iter_mut() {
+                x[0] *= (255.0 * 255.0) / max_value;
+                x[1] *= (255.0 * 255.0) / max_value;
+                x[2] *= (255.0 * 255.0) / max_value;
+            }
         }
     }
 
