@@ -59,9 +59,9 @@ export function createEditorState(): EditorState
     return {
         displayMode: DisplayMode.Normal,
         camera: {
-            center: vec3.fromValues(128, 128, 128),
+            center: vec3.fromValues(20, 20, 20),
             eulerAngles: vec2.fromValues(Math.PI / 4, Math.PI / 5),
-            distance: 200,
+            distance: 100,
         },
         inputDevicesInUse: {
             touch: false,

@@ -222,9 +222,10 @@ void main() {
     } else {
         mediump vec3 rayDir = normalize(rayEnd - rayStart);
         const mediump float horizon = -0.01;
-        if (rayDir.y < horizon && rayStart.y > 0.0) {
+        const highp float floor_z = 1.0;
+        if (rayDir.y < horizon && rayStart.y > floor_z) {
             // Floor
-            hitPosition.xz = mix(rayStart.xz, rayEnd.xz, rayStart.y / (rayStart.y - rayEnd.y));
+            hitPosition.xz = mix(rayStart.xz, rayEnd.xz, (rayStart.y - floor_z) / (rayStart.y - rayEnd.y));
             hitPosition.y = 0.0;
 
             // Hatch pattern

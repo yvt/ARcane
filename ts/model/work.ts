@@ -8,7 +8,14 @@ import { vec3 } from 'gl-matrix';
 
 export interface Work
 {
-    /** The latest `WorkDataVersion` (i.e., its `successor` is `null`). */
+    /**
+     * The latest `WorkDataVersion` (i.e., its `successor` is `null`).
+     *
+     * The geometry is stored in range `1 ≤ x ≤ extents[0]`, 1 ≤ y ≤ extents[1]`,
+     * and `1 ≤ z ≤ extents[2]`. The outside region must be empty (its density field
+     * must be constant zero). This one-block clearance is required due to an
+     * imprecise handling of the boundary by the ray tracing shader.
+     */
     readonly data: WorkDataVersion;
 
     readonly props: WorkProps;
@@ -16,9 +23,7 @@ export interface Work
 
 export interface WorkProps
 {
-    readonly width: number;
-    readonly height: number;
-    readonly depth: number;
+    readonly extents: ReadonlyArray<number>,
 }
 
 export interface WorkDataMutateContext
@@ -194,9 +199,7 @@ export class WorkData
 }
 
 export const WORK_PROPS_DEFAULT: WorkProps = {
-    width: 50,
-    height: 50,
-    depth: 40,
+    extents: [50, 40, 50],
 };
 
 export function createWork(): Work

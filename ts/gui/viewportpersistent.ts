@@ -369,169 +369,183 @@ export class ViewportPersistent implements IDisposable
 
         const scene = renderer.scene;
         scene.gizmos.length = 0;
-        if (actualDisplayMode === DisplayMode.AR && this.ar.activeState && this.ar.activeState.lastProcessedImage) {
-            // Do AR thingy
-            scene.enableAR = true;
 
-            const activeState = this.ar.activeState;
-            const image = activeState.lastProcessedImage!;
-            const video = activeState.video;
+        if (editorState.work) {
+            const work = editorState.work;
+            const {extents} = work.props;
 
-            if (!this.cameraImageData || this.cameraImageData.data.length !== image.data.length) {
-                this.cameraImageData = {
-                    data: new Uint8Array(image.data.length),
-                    width: image.width,
-                    height: image.height
-                };
-            }
-            this.cameraImageData.data.set(image.data);
-            renderer.setCameraImage(this.cameraImageData);
+            if (actualDisplayMode === DisplayMode.AR && this.ar.activeState && this.ar.activeState.lastProcessedImage) {
+                // Do AR thingy
+                scene.enableAR = true;
 
-            // `video.{videoWidth, videoHeight}` are dependent on the device orientation
-            const scale = Math.min(video.videoWidth / newWidth, video.videoHeight / newHeight);
-            const scaleX = scale / (video.videoWidth / newWidth);
-            const scaleY = scale / (video.videoHeight / newHeight);
+                const activeState = this.ar.activeState;
+                const image = activeState.lastProcessedImage!;
+                const video = activeState.video;
 
-            mat4.scale(
-                scene.cameraTextureMatrix,
-                mat4.fromTranslation(
+                if (!this.cameraImageData || this.cameraImageData.data.length !== image.data.length) {
+                    this.cameraImageData = {
+                        data: new Uint8Array(image.data.length),
+                        width: image.width,
+                        height: image.height
+                    };
+                }
+                this.cameraImageData.data.set(image.data);
+                renderer.setCameraImage(this.cameraImageData);
+
+                // `video.{videoWidth, videoHeight}` are dependent on the device orientation
+                const scale = Math.min(video.videoWidth / newWidth, video.videoHeight / newHeight);
+                const scaleX = scale / (video.videoWidth / newWidth);
+                const scaleY = scale / (video.videoHeight / newHeight);
+
+                mat4.scale(
                     scene.cameraTextureMatrix,
-                    [0.5, 0.5, 0]
-                ),
-                [0.5 * scaleX, -0.5 * scaleY, 0]
-            );
+                    mat4.fromTranslation(
+                        scene.cameraTextureMatrix,
+                        [0.5, 0.5, 0]
+                    ),
+                    [0.5 * scaleX, -0.5 * scaleY, 0]
+                );
 
-            scene.skipScene = !activeState.markerFound;
+                scene.skipScene = !activeState.markerFound;
 
-            // Derive the matrices
-            mat4.copy(scene.projectionMatrix, activeState.projectionMatrix);
+                // Derive the matrices
+                mat4.copy(scene.projectionMatrix, activeState.projectionMatrix);
 
-            scene.projectionMatrix[0] /= scaleX;
-            scene.projectionMatrix[5] /= scaleY;
+                scene.projectionMatrix[0] /= scaleX;
+                scene.projectionMatrix[5] /= scaleY;
 
-            // jsartoolkit's near/far plane default to bizarre values, causing
-            // unacceptable amount of numerical errors in FP32 operations.
-            // (And there is no way to change it)
-            // Substitute them with safe values until we find the right ones.
-            const dummyFar = 100;
-            const dummyNear = 0.01;
-            scene.projectionMatrix[10] = (dummyNear + dummyFar) / (dummyNear - dummyFar);
-            scene.projectionMatrix[11] = 1;
-            scene.projectionMatrix[14] = (2 * dummyNear * dummyFar) / (dummyNear - dummyFar);
+                // jsartoolkit's near/far plane default to bizarre values, causing
+                // unacceptable amount of numerical errors in FP32 operations.
+                // (And there is no way to change it)
+                // Substitute them with safe values until we find the right ones.
+                const dummyFar = 100;
+                const dummyNear = 0.01;
+                scene.projectionMatrix[10] = (dummyNear + dummyFar) / (dummyNear - dummyFar);
+                scene.projectionMatrix[11] = 1;
+                scene.projectionMatrix[14] = (2 * dummyNear * dummyFar) / (dummyNear - dummyFar);
 
-            if (activeState.markerFound) {
-                mat4.scale(scene.viewMatrix, activeState.markerMatrix, [1, 1, 1]);
-                mat4.translate(scene.viewMatrix, scene.viewMatrix, [-128, -128, 0]);
+                if (activeState.markerFound) {
+                    mat4.scale(scene.viewMatrix, activeState.markerMatrix, [1, 1, 1]);
+                    mat4.translate(scene.viewMatrix, scene.viewMatrix, [-128, -128, 0]);
+                } else {
+                    mat4.identity(scene.viewMatrix);
+                }
+
+                const mvp = mat4.create();
+                const v = vec4.create();
+                mat4.multiply(mvp, scene.projectionMatrix, scene.viewMatrix);
+
+                // Scale the projection matrix so entire the scene fits within the
+                // clip space Z range [0, 32768]
+                let origMaxZ = -Infinity;
+                for (let i = 0; i < 8; ++i) {
+                    vec4.set(v, (i & 1) ? extents[0] + 1 : 1, (i & 2) ? extents[1] + 1 : 1, (i & 4) ? extents[2] + 1 : 1, 1);
+                    vec4.transformMat4(v, v, mvp);
+                    if (v[3] > 0) {
+                        const z = v[2] / v[3];
+                        origMaxZ = Math.max(origMaxZ, z);
+                    }
+                }
+
+                vec4.set(v, 0, 0, dummyNear, 1);
+                vec4.transformMat4(v, v, scene.projectionMatrix);
+                const origMinZ = v[2] / v[3];
+
+                if (!isFinite(origMaxZ)) {
+                    origMaxZ = origMinZ + 1e-5;
+                }
+
+                // nearest/furthest points are mapped to 32768 and 0, respectively
+                const factor = 32768 / (origMinZ - origMaxZ);
+                const offset = -origMaxZ * factor;
+                const {projectionMatrix} = scene;
+                projectionMatrix[2] *= factor;
+                projectionMatrix[6] *= factor;
+                projectionMatrix[10] *= factor;
+                projectionMatrix[14] *= factor;
+                projectionMatrix[2] += projectionMatrix[3] * offset;
+                projectionMatrix[6] += projectionMatrix[7] * offset;
+                projectionMatrix[10] += projectionMatrix[11] * offset;
+                projectionMatrix[14] += projectionMatrix[15] * offset;
+
+                mat4.multiply(mvp, scene.projectionMatrix, scene.viewMatrix);
+
+                // Device orientation matrix represents mapping from the view space to
+                // the env space, so...
+                mat4.copy(this.renderer.scene.viewToEnvMatrix, this.orientationMatrix);
+
+                if (rect.width * devicePixelRatio > newWidth * 1.5) {
+                    canvas.style.filter = `blur(${rect.width / video.videoWidth}px)`;
+                } else {
+                    canvas.style.filter = '';
+                }
             } else {
-                mat4.identity(scene.viewMatrix);
+                scene.enableAR = false;
+                scene.skipScene = false;
+
+                scene.viewMatrix = new CameraStateInfo(this.smoothedCamera).viewMatrix;
+                mat4.perspective(renderer.scene.projectionMatrix, 1.0, canvas.width / canvas.height, 1, 500);
+
+                // Convert Z from (-1 -> 1) to (32768 -> 0) (for more precision)
+                mat4.multiply(
+                    scene.projectionMatrix,
+                    mat4.scale(
+                        mat4.create(),
+                        mat4.fromTranslation(
+                            mat4.create(),
+                            [0, 0, 16384]
+                        ),
+                        [1, 1, -16384]
+                    ),
+                    scene.projectionMatrix,
+                );
+
+                canvas.style.filter = '';
             }
 
-            const mvp = mat4.create();
-            const v = vec4.create();
-            mat4.multiply(mvp, scene.projectionMatrix, scene.viewMatrix);
+            scene.depthNear = 32768;
+            scene.depthFar = 0;
 
-            // Scale the projection matrix so entire the scene fits within the
-            // clip space Z range [0, 32768]
-            let origMaxZ = -Infinity;
-            for (let i = 0; i < 8; ++i) {
-                vec4.set(v, (i & 1) ? 256 : 0, (i & 2) ? 256 : 0, (i & 4) ? 256 : 0, 1);
-                vec4.transformMat4(v, v, mvp);
-                if (v[3] > 0) {
-                    const z = v[2] / v[3];
-                    origMaxZ = Math.max(origMaxZ, z);
+            // Draw bounding box
+            Array.prototype.push.apply(scene.gizmos, this.boundingBoxGizmos);
+            for (const g of this.boundingBoxGizmos) {
+                for (const v of g.points) {
+                    v[0] = v[0] > 1 ? extents[0] + 1 : 1;
+                    v[1] = v[1] > 1 ? extents[1] + 1 : 1;
+                    v[2] = v[2] > 1 ? extents[2] + 1 : 1;
                 }
             }
 
-            vec4.set(v, 0, 0, dummyNear, 1);
-            vec4.transformMat4(v, v, scene.projectionMatrix);
-            const origMinZ = v[2] / v[3];
-
-            if (!isFinite(origMaxZ)) {
-                origMaxZ = origMinZ + 1e-5;
+            // Highlight the hot voxel
+            const hit = this.cursorRaytraceHit;
+            if (hit && hit.hit && hit.normal) {
+                const bx = Math.max(0, hit.normal.normal[0]) + hit.voxel[0];
+                const by = Math.max(0, hit.normal.normal[1]) + hit.voxel[1];
+                const bz = Math.max(0, hit.normal.normal[2]) + hit.voxel[2];
+                const tan1x = Math.abs(hit.normal.normal[2]);
+                const tan1y = Math.abs(hit.normal.normal[0]);
+                const tan1z = Math.abs(hit.normal.normal[1]);
+                const tan2x = Math.abs(hit.normal.normal[1]);
+                const tan2y = Math.abs(hit.normal.normal[2]);
+                const tan2z = Math.abs(hit.normal.normal[0]);
+                for (let i = 0; i < 2; ++i) {
+                    const g = new LineGizmo();
+                    g.points.push(vec3.fromValues(bx, by, bz));
+                    g.points.push(vec3.fromValues(bx + tan1x, by + tan1y, bz + tan1z));
+                    g.points.push(vec3.fromValues(bx + tan1x + tan2x, by + tan1y + tan2y, bz + tan1z + tan2z));
+                    g.points.push(vec3.fromValues(bx + tan2x, by + tan2y, bz + tan2z));
+                    g.closed = true;
+                    vec4.set(g.color, i, i, i, 1);
+                    g.style = LineStyle.SOLID;
+                    scene.gizmos.push(g);
+                }
             }
 
-            // nearest/furthest points are mapped to 32768 and 0, respectively
-            const factor = 32768 / (origMinZ - origMaxZ);
-            const offset = -origMaxZ * factor;
-            const {projectionMatrix} = scene;
-            projectionMatrix[2] *= factor;
-            projectionMatrix[6] *= factor;
-            projectionMatrix[10] *= factor;
-            projectionMatrix[14] *= factor;
-            projectionMatrix[2] += projectionMatrix[3] * offset;
-            projectionMatrix[6] += projectionMatrix[7] * offset;
-            projectionMatrix[10] += projectionMatrix[11] * offset;
-            projectionMatrix[14] += projectionMatrix[15] * offset;
-
-            mat4.multiply(mvp, scene.projectionMatrix, scene.viewMatrix);
-
-            // Device orientation matrix represents mapping from the view space to
-            // the env space, so...
-            mat4.copy(this.renderer.scene.viewToEnvMatrix, this.orientationMatrix);
-
-            if (rect.width * devicePixelRatio > newWidth * 1.5) {
-                canvas.style.filter = `blur(${rect.width / video.videoWidth}px)`;
-            } else {
-                canvas.style.filter = '';
-            }
+            renderer.voxel.updateFrom(work.data);
         } else {
-            scene.enableAR = false;
-            scene.skipScene = false;
-
-            scene.viewMatrix = new CameraStateInfo(this.smoothedCamera).viewMatrix;
-            mat4.perspective(renderer.scene.projectionMatrix, 1.0, canvas.width / canvas.height, 1, 500);
-
-            // Convert Z from (-1 -> 1) to (32768 -> 0) (for more precision)
-            mat4.multiply(
-                scene.projectionMatrix,
-                mat4.scale(
-                    mat4.create(),
-                    mat4.fromTranslation(
-                        mat4.create(),
-                        [0, 0, 16384]
-                    ),
-                    [1, 1, -16384]
-                ),
-                scene.projectionMatrix,
-            );
-
-            canvas.style.filter = '';
+            scene.skipScene = true;
         }
 
-        scene.depthNear = 32768;
-        scene.depthFar = 0;
-
-        // Draw bounding box
-        Array.prototype.push.apply(scene.gizmos, this.boundingBoxGizmos);
-
-        // Highlight the hot voxel
-        const hit = this.cursorRaytraceHit;
-        if (hit && hit.hit && hit.normal) {
-            const bx = Math.max(0, hit.normal.normal[0]) + hit.voxel[0];
-            const by = Math.max(0, hit.normal.normal[1]) + hit.voxel[1];
-            const bz = Math.max(0, hit.normal.normal[2]) + hit.voxel[2];
-            const tan1x = Math.abs(hit.normal.normal[2]);
-            const tan1y = Math.abs(hit.normal.normal[0]);
-            const tan1z = Math.abs(hit.normal.normal[1]);
-            const tan2x = Math.abs(hit.normal.normal[1]);
-            const tan2y = Math.abs(hit.normal.normal[2]);
-            const tan2z = Math.abs(hit.normal.normal[0]);
-            for (let i = 0; i < 2; ++i) {
-                const g = new LineGizmo();
-                g.points.push(vec3.fromValues(bx, by, bz));
-                g.points.push(vec3.fromValues(bx + tan1x, by + tan1y, bz + tan1z));
-                g.points.push(vec3.fromValues(bx + tan1x + tan2x, by + tan1y + tan2y, bz + tan1z + tan2z));
-                g.points.push(vec3.fromValues(bx + tan2x, by + tan2y, bz + tan2z));
-                g.closed = true;
-                vec4.set(g.color, i, i, i, 1);
-                g.style = LineStyle.SOLID;
-                scene.gizmos.push(g);
-            }
-        }
-
-        if (editorState.work) {
-            renderer.voxel.updateFrom(editorState.work.data);
-        }
         renderer.render();
         this.numRenderedFrames += 1;
 
