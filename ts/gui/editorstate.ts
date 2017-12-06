@@ -6,8 +6,9 @@
  */
 import { vec2, vec3, mat4 } from 'gl-matrix';
 import { UIColor, UIRgbColor } from './utils/color';
-import { Workspace } from '../model/workspace';
+import { Work } from '../model/work';
 import { createWork, mapIndex } from '../model/work';
+require('../storage/local');
 
 export interface EditorState
 {
@@ -31,7 +32,7 @@ export interface EditorState
     /** An integer in range `[0, 1]` */
     readonly activeMaterial: number;
 
-    readonly workspace: Workspace;
+    readonly work: Work;
 }
 
 export interface CameraState
@@ -96,7 +97,7 @@ export function createEditorState(): EditorState
         activeColor: new UIRgbColor(0.2, 0.25, 0.4, 1),
         activeRoughness: 32,
         activeMaterial: 0,
-        workspace: { work },
+        work,
     };
 }
 

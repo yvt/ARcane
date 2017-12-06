@@ -310,7 +310,7 @@ export class ViewportPersistent implements IDisposable
         vec3.transformMat4(rayEnd, rayEnd, m);
 
         // Perform ray trace
-        const {data} = listener.editorState.workspace.work;
+        const {data} = listener.editorState.work;
         return raytrace(data.data!, rayStart, rayEnd);
     }
 
@@ -529,7 +529,7 @@ export class ViewportPersistent implements IDisposable
             }
         }
 
-        renderer.voxel.updateFrom(editorState.workspace.work.data);
+        renderer.voxel.updateFrom(editorState.work.data);
         renderer.render();
         this.numRenderedFrames += 1;
 
