@@ -10,6 +10,15 @@ export interface Work
 {
     /** The latest `WorkDataVersion` (i.e., its `successor` is `null`). */
     readonly data: WorkDataVersion;
+
+    readonly props: WorkProps;
+}
+
+export interface WorkProps
+{
+    readonly width: number;
+    readonly height: number;
+    readonly depth: number;
 }
 
 export interface WorkDataMutateContext
@@ -17,6 +26,15 @@ export interface WorkDataMutateContext
     readonly data: WorkData;
 
     markDirty(min: ReadonlyArray<number>, max: ReadonlyArray<number>): void;
+}
+
+export interface Aabb3
+{
+    /** The minimum coordinate values (inclusive). */
+    min: vec3;
+
+    /** The maximum coordinate values (exclusive). */
+    max: vec3;
 }
 
 /**
@@ -31,7 +49,7 @@ export class WorkDataVersion
 {
     private _successor: WorkDataVersion | null;
     private _data: WorkData | null;
-    private _dirtyRegion: { min: vec3; max: vec3; } | null = null;
+    private _dirtyRegion: Aabb3 | null = null;
 
     /** The successor of this version, or `null` if this is the latest one. */
     get successor(): WorkDataVersion | null { return this._successor; }
@@ -47,7 +65,7 @@ export class WorkDataVersion
     }
 
     /** The AABB region updated between this version and the next one, or `null` if this is the latest one. */
-    get dirtyRegion(): { min: vec3; max: vec3; } | null { return this._dirtyRegion; }
+    get dirtyRegion(): Aabb3 | null { return this._dirtyRegion; }
 
     /**
      * The contained data.
@@ -175,9 +193,16 @@ export class WorkData
     readonly mapIndex = mapIndex;
 }
 
+export const WORK_PROPS_DEFAULT: WorkProps = {
+    width: 50,
+    height: 50,
+    depth: 40,
+};
+
 export function createWork(): Work
 {
     return {
         data: WorkDataVersion.create(new WorkData()),
+        props: WORK_PROPS_DEFAULT,
     };
 }

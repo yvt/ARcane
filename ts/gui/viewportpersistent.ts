@@ -295,7 +295,7 @@ export class ViewportPersistent implements IDisposable
             return null;
         }
         const {scene} = this.renderer;
-        if (scene.skipScene) {
+        if (scene.skipScene || !listener.editorState.work) {
             return null;
         }
 
@@ -529,7 +529,9 @@ export class ViewportPersistent implements IDisposable
             }
         }
 
-        renderer.voxel.updateFrom(editorState.work.data);
+        if (editorState.work) {
+            renderer.voxel.updateFrom(editorState.work.data);
+        }
         renderer.render();
         this.numRenderedFrames += 1;
 

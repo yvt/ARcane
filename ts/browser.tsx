@@ -24,4 +24,7 @@ export function main(): void
         <App logManager={logManager} />,
         document.getElementById('app-root'),
     );
+
+    const splash = document.getElementById('splash')!;
+    splash.parentNode!.removeChild(splash);
 }

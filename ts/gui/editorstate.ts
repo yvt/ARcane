@@ -32,7 +32,10 @@ export interface EditorState
     /** An integer in range `[0, 1]` */
     readonly activeMaterial: number;
 
-    readonly work: Work;
+    readonly work: Work | null;
+
+    /** Inhibits automatic saving of `work`. */
+    readonly skipWorkSave: boolean;
 }
 
 export interface CameraState
@@ -53,35 +56,6 @@ export enum DisplayMode
 
 export function createEditorState(): EditorState
 {
-    // DEBUG: create a pre-initialized work
-    let work = createWork();
-    work = {
-        ... work,
-        data: work.data.mutate(context => {
-            const dens = context.data.density;
-            const mat = context.data.material;
-
-            for (let z = 0; z < 256; ++z) {
-                for (let y = 0; y < 256; ++y) {
-                    for (let x = 0; x < 256; ++x) {
-                        let v = Math.sin(x / 20) + Math.sin(y / 20) + Math.cos(z / 20) + Math.sin((x ^ y ^ z) * .1) * 0.5;
-                        v *= Math.max(0, 128 * 128 - Math.pow(x - 128, 2) - Math.pow(y - 128, 2) - Math.pow(z - 128, 2)) / 128 / 128;
-                        v += (v - 0.5) * 4;
-                        v = Math.max(Math.min(v * 255 | 0, 255), 0);
-
-                        dens[mapIndex(x, y, z)] = v;
-
-                        const gloss = Math.min((z * 1.5 + Math.random() * (4 + Math.random() * 128)) >> 3, 63);
-                        const material = x > 128 ? 1 /* metallic */ : 0 /* dielectric */;
-                        mat[mapIndex(x, y, z)] = (Math.random() * 0x1000000 & 0xf0f0f |
-                            (x > 128 ? 0x203080 : 0x80a0d0)) | (gloss << 24) | (material << 30);
-                    }
-                }
-            }
-
-            context.markDirty([0, 0, 0], [256, 256, 256]);
-        }),
-    };
     return {
         displayMode: DisplayMode.Normal,
         camera: {
@@ -97,7 +71,8 @@ export function createEditorState(): EditorState
         activeColor: new UIRgbColor(0.2, 0.25, 0.4, 1),
         activeRoughness: 32,
         activeMaterial: 0,
-        work,
+        work: null,
+        skipWorkSave: false,
     };
 }
 

@@ -40,15 +40,17 @@ The following tables detail the features used by ARcane.
 
 ### Required
 
-|              Feature              | Edge | Chrome | Firefox | Safari | iOS |
-| --------------------------------- | ---- | ------ | ------- | ------ | --- |
-| [ES6] Collections (basic support) | 12   |     38 |      13 |      8 | ≤ 8 |
-| ES6 [Promise]                     | Yes  |     32 |      27 |    7.1 | ≤ 8 |
-| ES6 [`Math.imul`]                 | Yes  |     28 |      20 |      7 | ≤ 8 |
-| ES6 [`Math.sign`]                 | Yes  |     38 |      25 |      9 | 9   |
-| ES6 [`Math.hypot`]                | Yes  |     38 |      27 |      8 | ≤ 8 |
-| ES6 [`Math.fround`]               | Yes  |     38 |      26 |      8 | ≤ 8 |
-| [WebGL 1.0]                       | 12   |      8 |       4 |    5.1 | 8   |
+|              Feature              | Edge | Chrome | Firefox | Safari | iOS  |
+| --------------------------------- | ---- | ------ | ------- | ------ | ---- |
+| [ES6] Collections (basic support) | 12   |     38 |      13 |      8 | ≤ 8  |
+| ES6 [Promise]                     | Yes  |     32 |      27 |    7.1 | ≤ 8  |
+| ES6 [`Math.imul`]                 | Yes  |     28 |      20 |      7 | ≤ 8  |
+| ES6 [`Math.sign`]                 | Yes  |     38 |      25 |      9 | 9    |
+| ES6 [`Math.hypot`]                | Yes  |     38 |      27 |      8 | ≤ 8  |
+| ES6 [`Math.fround`]               | Yes  |     38 |      26 |      8 | ≤ 8  |
+| ES6 [`String#startsWith`]         | Yes  |     41 |      17 |      9 | ?    |
+| [WebGL 1.0]                       | 12   |      8 |       4 |    5.1 | 8    |
+| [IndexedDB]                       | 12   |     24 |      16 |     10 | 10.2 |
 
 ### Semi-optional (CSS)
 
@@ -72,6 +74,8 @@ The following tables detail the features used by ARcane.
 [`Math.sign`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/sign
 [`Math.hypot`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/hypot
 [`Math.fround`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Math/fround
+[`String#startsWith`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/startsWith
+[IndexedDB]: https://caniuse.com/#feat=indexeddb
 [CSS Flexible Box]: https://caniuse.com/#feat=flexbox
 [CSS Masks]: https://caniuse.com/#feat=css-masks
 [Web Workers]: https://caniuse.com/#feat=webworkers

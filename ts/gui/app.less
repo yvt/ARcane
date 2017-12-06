@@ -16,3 +16,43 @@ html, body {
     font-size: 14px;
     -webkit-font-smoothing: antialiased;
 }
+
+.error {
+    position: fixed;
+    left: 0; top: 0; right: 0; bottom: 0;
+    background: rgba(0, 0, 0, 0.5);
+    color: white;
+    overflow: auto;
+    -webkit-overflow-scrolling: touch;
+
+    > div {
+        margin: 100px 0;
+        padding: 100px 0;
+        text-align: center;
+        background: rgba(0, 0, 0, 0.8);
+        h1 {
+            font-size: 150%;
+            margin: 0.8em 0;
+        }
+        p {
+            margin: 0.8em 0;
+        }
+    }
+}
+
+// `#splash` is also referenced by the static HTML code
+.splash, #splash {
+    position: absolute;
+    left: 0; top: 0; right: 0; bottom: 0;
+
+    background: #202020;
+    color: white;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    > p {
+        font-size: 30px;
+    }
+}
