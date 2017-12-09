@@ -295,7 +295,7 @@ export class ViewportPersistent implements IDisposable
             return null;
         }
         const {scene} = this.renderer;
-        if (scene.skipScene || !listener.editorState.work) {
+        if (scene.skipScene || !listener.editorState.workspace) {
             return null;
         }
 
@@ -310,7 +310,7 @@ export class ViewportPersistent implements IDisposable
         vec3.transformMat4(rayEnd, rayEnd, m);
 
         // Perform ray trace
-        const {data} = listener.editorState.work;
+        const {data} = listener.editorState.workspace.work;
         return raytrace(data.data!, rayStart, rayEnd);
     }
 
@@ -370,8 +370,8 @@ export class ViewportPersistent implements IDisposable
         const scene = renderer.scene;
         scene.gizmos.length = 0;
 
-        if (editorState.work) {
-            const work = editorState.work;
+        if (editorState.workspace) {
+            const work = editorState.workspace.work;
             const {extents} = work.props;
 
             if (actualDisplayMode === DisplayMode.AR && this.ar.activeState && this.ar.activeState.lastProcessedImage) {

@@ -73,13 +73,23 @@
     }
 }
 
-.toolbar {
+.toolbar, .toolbar2 {
     position: absolute;
-    top: 15px; right: 15px;
-    right: constant(safe-area-inset-right);
-    height: ~"calc(60% - 30px)";
-    /* iOS 11.2 and later */
-    @supports(right: max(0px)) { right: ~"max(15px, constant(safe-area-inset-right))" }
+    top: 15px;
+    &.toolbar {
+        right: 15px;
+        right: constant(safe-area-inset-right);
+        height: ~"calc(60% - 30px)";
+        /* iOS 11.2 and later */
+        @supports(right: max(0px)) { right: ~"max(15px, constant(safe-area-inset-right))" }
+    }
+    &.toolbar2 {
+        left: 15px;
+        left: constant(safe-area-inset-left);
+        height: ~"calc(60% - 30px)";
+        /* iOS 11.2 and later */
+        @supports(left: max(0px)) { left: ~"max(15px, constant(safe-area-inset-left))" }
+    }
 
     display: flex;
     flex-direction: column;
@@ -105,6 +115,9 @@
             will-change: filter;
             left: 0; top: 0; width: 100%; height: 100%;
         }
+        &:disabled {
+            opacity: 0.5;
+        }
     }
 
     // Popup buttons
@@ -127,7 +140,8 @@
     }
 
     // Active buttons
-    > input:checked + label {
+    > input:checked + label,
+    > button:active {
         background: #5080f0;
         > span {
             filter: brightness(1000%);

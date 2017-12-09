@@ -8,6 +8,7 @@ import { vec2, vec3, mat4 } from 'gl-matrix';
 import { UIColor, UIRgbColor } from './utils/color';
 import { Work } from '../model/work';
 import { createWork, mapIndex } from '../model/work';
+import { EditHistoryState } from './edit';
 require('../storage/local');
 
 export interface EditorState
@@ -32,10 +33,14 @@ export interface EditorState
     /** An integer in range `[0, 1]` */
     readonly activeMaterial: number;
 
-    readonly work: Work | null;
+    readonly workspace: Workspace | null;
+}
 
-    /** Inhibits automatic saving of `work`. */
-    readonly skipWorkSave: boolean;
+export interface Workspace
+{
+    readonly work: Work;
+
+    readonly history: EditHistoryState;
 }
 
 export interface CameraState
@@ -71,8 +76,7 @@ export function createEditorState(): EditorState
         activeColor: new UIRgbColor(0.2, 0.25, 0.4, 1),
         activeRoughness: 32,
         activeMaterial: 0,
-        work: null,
-        skipWorkSave: false,
+        workspace: null,
     };
 }
 

@@ -14,6 +14,7 @@ import { ViewportOverlay } from './viewportoverlay';
 
 import { createEditorState, EditorState } from './editorstate';
 import { Work } from '../model/work';
+import { EditHistoryState } from './edit';
 
 import { LocalDataStorage } from '../storage/local';
 import { LocalWork } from '../storage/localwork';
@@ -79,7 +80,10 @@ export class App extends React.Component<AppProps, State>
             localWork,
             editorState: {
                 ...this.state.editorState,
-                work: localWork.work,
+                workspace: {
+                    work: localWork.work,
+                    history: EditHistoryState.createEmpty(),
+                },
             },
         });
     }
@@ -89,17 +93,17 @@ export class App extends React.Component<AppProps, State>
     {
         // Save the changes
         if (
-            !newValue.skipWorkSave &&
-            newValue.work !== this.state.editorState.work &&
-            newValue.work
+            newValue.workspace && this.state.editorState.workspace &&
+            newValue.workspace.work !== this.state.editorState.workspace.work &&
+            !newValue.workspace.history.isAnyEditActive
         ) {
             this.setState({
-                savingWork: newValue.work,
+                savingWork: newValue.workspace.work,
             });
-            this.state.localWork!.update(newValue.work)
+            this.state.localWork!.update(newValue.workspace.work)
                 .then(() => {
                     this.setState((prevState: State) => {
-                        if (prevState.savingWork === newValue.work) {
+                        if (prevState.savingWork === newValue.workspace!.work) {
                             return {
                                 savingWork: null,
                             };

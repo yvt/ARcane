@@ -11,6 +11,7 @@ import { RadioList } from './controls/radiolist';
 import { ColorPicker } from './controls/colorpicker';
 import { PureCssPie } from './controls/purecsspie';
 import { Slider } from './controls/slider';
+import { EventIndicator } from './eventindicator';
 
 import { EditorState, DisplayMode } from './editorstate';
 import { UIColor } from './utils/color';
@@ -70,6 +71,8 @@ const MOUSE_HELP = <tbody>
 
 export class ViewportOverlay extends React.Component<ViewportOverlayProps, State>
 {
+    private eventIndicator: EventIndicator | null = null;
+
     constructor(props: ViewportOverlayProps)
     {
         super(props);
@@ -134,6 +137,34 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
 
     @bind
     private handleDismissMaterialPopup(): void { this.setState({ materialPopupActive: false }); }
+
+    @bind
+    private handleUndo(): void { this.handleUndoRedo('undo'); }
+
+    @bind
+    private handleRedo(): void { this.handleUndoRedo('redo'); }
+
+    private handleUndoRedo(dir: 'undo' | 'redo'): void
+    {
+        if (!this.props.editorState.workspace ||
+            this.props.editorState.workspace.history.canUndo) {
+            return;
+        }
+
+        const {workspace} = this.props.editorState;
+        const [work, actionName, history] = workspace.history[dir](workspace.work);
+
+        this.props.onChangeEditorState({
+            ... this.props.editorState,
+            workspace: {
+                ...this.props.editorState.workspace,
+                history,
+                work,
+            },
+        });
+
+        this.eventIndicator!.display(`${dir === 'undo' ? 'Undo' : 'Redo'} ${actionName}`);
+    }
 
     render()
     {
@@ -210,12 +241,21 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
                     </PopupFrame>
                 </div>
             </div>
+            <div className={classNames.toolbar2}>
+                <button type='button' onClick={this.handleUndo}
+                    disabled={!(editorState.workspace &&
+                        editorState.workspace.history.canUndo)}>Undo</button>
+                <button type='button' onClick={this.handleRedo}
+                    disabled={!(editorState.workspace &&
+                        editorState.workspace.history.canRedo)}>Redo</button>
+            </div>
             <DisplayModeRadioList
                 className={classNames.displayModeList}
                 items={DISPLAY_MODE_LIST}
                 value={editorState.displayMode}
                 onChange={this.handleDisplayModeChange}
                 />
+            <EventIndicator ref={e => {this.eventIndicator = e;}} />
             {
                 !editorState.inputDevicesInUse.touch &&
                 <table className={classNames.mouseHelp +
