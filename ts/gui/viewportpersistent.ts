@@ -495,8 +495,10 @@ export class ViewportPersistent implements IDisposable
                 scene.projectionMatrix[14] = (2 * dummyNear * dummyFar) / (dummyNear - dummyFar);
 
                 if (activeState.markerFound) {
-                    mat4.scale(scene.viewMatrix, activeState.markerMatrix, [1, 1, 1]);
-                    mat4.translate(scene.viewMatrix, scene.viewMatrix, [-128, -128, 0]);
+                    const scale = 256 / Math.max(extents[0], extents[1], extents[2]);
+                    mat4.scale(scene.viewMatrix, activeState.markerMatrix, [scale, scale, scale]);
+                    mat4.rotateX(scene.viewMatrix, scene.viewMatrix, Math.PI / 2);
+                    mat4.translate(scene.viewMatrix, scene.viewMatrix, [-1 - extents[0] / 2, -1, -1 - extents[2] / 2]);
                 } else {
                     mat4.identity(scene.viewMatrix);
                 }
