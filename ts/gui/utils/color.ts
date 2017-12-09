@@ -80,6 +80,15 @@ export class UIRgbColor
         const {red, green, blue, alpha} = this;
         return `rgba(${red * 100}%, ${green * 100}%, ${blue * 100}%, ${alpha})`;
     }
+
+    toBgr8(): number
+    {
+        let {red, green, blue} = this;
+        red = Math.round(red * 255);
+        green = Math.round(green * 255);
+        blue = Math.round(blue * 255);
+        return red | (green << 8) | (blue << 16);
+    }
 }
 
 export class UIHsvColor

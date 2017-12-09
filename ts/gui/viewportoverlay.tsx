@@ -146,24 +146,27 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
 
     private handleUndoRedo(dir: 'undo' | 'redo'): void
     {
-        if (!this.props.editorState.workspace ||
-            this.props.editorState.workspace.history.canUndo) {
-            return;
-        }
+        this.props.onChangeEditorState(state => {
+            if (!state.workspace ||
+                !(dir == 'undo'
+                    ? state.workspace.history.canUndo
+                    : state.workspace.history.canRedo)) {
+                return state;
+            }
+            const {workspace} = state;
+            const [work, actionName, history] = workspace.history[dir](workspace.work);
 
-        const {workspace} = this.props.editorState;
-        const [work, actionName, history] = workspace.history[dir](workspace.work);
+            this.eventIndicator!.display(`${dir === 'undo' ? 'Undo' : 'Redo'} ${actionName}`);
 
-        this.props.onChangeEditorState(state => ({
-            ... state,
-            workspace: {
-                ...this.props.editorState.workspace,
-                history,
-                work,
-            },
-        }));
-
-        this.eventIndicator!.display(`${dir === 'undo' ? 'Undo' : 'Redo'} ${actionName}`);
+            return {
+                ... state,
+                workspace: {
+                    ...state.workspace,
+                    history,
+                    work,
+                },
+            }
+        });
     }
 
     render()

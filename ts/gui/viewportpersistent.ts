@@ -21,6 +21,7 @@ import { createWorkerClient } from '../workerclient';
 import { EditorState, CameraState, DisplayMode, CameraStateInfo } from './editorstate';
 import { MouseRouter } from './utils/mousecapture';
 import { DeviceOrientationListener } from './deviceorientation';
+import { EditTool, EDIT_TOOLS, Stroke, PointerInput } from './tool';
 
 import { ARMain } from '../xr/main';
 
@@ -100,6 +101,9 @@ export class ViewportPersistent implements IDisposable
     private orientationListener: [DeviceOrientationListener | null] | null = null;
     private orientationMatrix = mat4.identity(mat4.create());
 
+    // # Editing
+    private stroke: { stroke: Stroke | null } | null = null;
+
     constructor(private logManager: LogManager)
     {
         this.log = logManager.getLogger('viewport-persistent');
@@ -174,8 +178,31 @@ export class ViewportPersistent implements IDisposable
             }
             let mode: MouseGrabMode;
             switch (e.button) {
-                case 1:
+                case 0:
+                    const {tool} = this;
+                    if (!tool || this.stroke || !this.listener || !this.listener.editorState.workspace) {
+                        return null;
+                    }
+
                     mode = MouseGrabMode.Draw;
+
+                    const vpstroke = this.stroke = { stroke: null as Stroke | null };
+                    this.listener.handleEditorStateUpdate(state => {
+                        if (vpstroke !== this.stroke) {
+                            return state;
+                        }
+                        const input = this.createPointerInput(state);
+                        if (!input) {
+                            return state;
+                        }
+                        const result = tool.startStroke(input);
+                        if (!result) {
+                            return state;
+                        }
+                        const [stroke, workspace] = result;
+                        vpstroke.stroke = stroke;
+                        return { ...state, workspace };
+                    });
                     break;
                 case 2:
                     mode = MouseGrabMode.Camera;
@@ -184,11 +211,14 @@ export class ViewportPersistent implements IDisposable
                     return null;
             }
             e.preventDefault();
-            return {
+
+            state = {
                 lastX: e.clientX,
                 lastY: e.clientY,
                 mode,
             };
+
+            return state;
         };
         this.mouseRouter.onMouseMove = (e, state) => {
             e.preventDefault();
@@ -198,7 +228,19 @@ export class ViewportPersistent implements IDisposable
 
             switch (state.mode) {
                 case MouseGrabMode.Draw:
-                    // TODO
+                    const vpstroke = this.stroke;
+                    if (this.listener && vpstroke) {
+                        this.listener.handleEditorStateUpdate(state => {
+                            if (!vpstroke.stroke) {
+                                return state;
+                            }
+                            const input = this.createPointerInput(state);
+                            if (!input) {
+                                return state;
+                            }
+                            return { ...state, workspace: vpstroke.stroke.move(input) };
+                        });
+                    }
                     break;
                 case MouseGrabMode.Camera:
                     if (this.listener) {
@@ -248,6 +290,25 @@ export class ViewportPersistent implements IDisposable
             state.lastY = e.clientY;
         };
 
+        this.mouseRouter.onMouseUp = (e, state) => {
+            e.preventDefault();
+
+            switch (state.mode) {
+                case MouseGrabMode.Draw:
+                    const vpstroke = this.stroke;
+                    if (this.listener && vpstroke) {
+                        this.listener.handleEditorStateUpdate(state => {
+                            if (!vpstroke.stroke) {
+                                return state;
+                            }
+                            return { ...state, workspace: vpstroke.stroke.end(state as any) };
+                        });
+                    }
+                    this.stroke = null;
+                    break;
+            }
+        };
+
         // TODO: touch input
 
         {
@@ -280,22 +341,27 @@ export class ViewportPersistent implements IDisposable
         }
     }
 
+    get tool(): EditTool | null
+    {
+        if (!this.listener) {
+            return null;
+        }
+        return EDIT_TOOLS[this.listener.editorState.tool];
+    }
+
     get isShadersReady(): boolean
     {
         return this.numRenderedFrames > 10;
     }
 
-    /**
-     * Retrieve the result of the pointer hit scan.
-     */
-    private get cursorRaytraceHit(): RaytraceHit | null
+    private createPointerInput(state: EditorState): PointerInput | null
     {
         const {clipSpaceMouseLocation, listener} = this;
         if (!clipSpaceMouseLocation || !listener) {
             return null;
         }
         const {scene} = this.renderer;
-        if (scene.skipScene || !listener.editorState.workspace) {
+        if (scene.skipScene || !state.workspace) {
             return null;
         }
 
@@ -309,9 +375,13 @@ export class ViewportPersistent implements IDisposable
         vec3.transformMat4(rayStart, rayStart, m);
         vec3.transformMat4(rayEnd, rayEnd, m);
 
-        // Perform ray trace
-        const {data} = listener.editorState.workspace.work;
-        return raytrace(data.data!, rayStart, rayEnd);
+        return {
+            x: clipSpaceMouseLocation[0],
+            y: clipSpaceMouseLocation[1],
+            rayStart,
+            rayEnd,
+            state: state as any,
+        };
     }
 
     update(render: boolean): void
@@ -517,28 +587,12 @@ export class ViewportPersistent implements IDisposable
             }
 
             // Highlight the hot voxel
-            const hit = this.cursorRaytraceHit;
-            if (hit && hit.hit && hit.normal) {
-                const bx = Math.max(0, hit.normal.normal[0]) + hit.voxel[0];
-                const by = Math.max(0, hit.normal.normal[1]) + hit.voxel[1];
-                const bz = Math.max(0, hit.normal.normal[2]) + hit.voxel[2];
-                const tan1x = Math.abs(hit.normal.normal[2]);
-                const tan1y = Math.abs(hit.normal.normal[0]);
-                const tan1z = Math.abs(hit.normal.normal[1]);
-                const tan2x = Math.abs(hit.normal.normal[1]);
-                const tan2y = Math.abs(hit.normal.normal[2]);
-                const tan2z = Math.abs(hit.normal.normal[0]);
-                for (let i = 0; i < 2; ++i) {
-                    const g = new LineGizmo();
-                    g.points.push(vec3.fromValues(bx, by, bz));
-                    g.points.push(vec3.fromValues(bx + tan1x, by + tan1y, bz + tan1z));
-                    g.points.push(vec3.fromValues(bx + tan1x + tan2x, by + tan1y + tan2y, bz + tan1z + tan2z));
-                    g.points.push(vec3.fromValues(bx + tan2x, by + tan2y, bz + tan2z));
-                    g.closed = true;
-                    vec4.set(g.color, i, i, i, 1);
-                    g.style = LineStyle.SOLID;
-                    scene.gizmos.push(g);
-                }
+            const input = this.createPointerInput(editorState);
+            const toolGizmos = input && (this.stroke && this.stroke.stroke
+                ? this.stroke.stroke.getGizmos && this.stroke.stroke.getGizmos(input)
+                : this.tool && this.tool.getGizmos(input));
+            if (toolGizmos) {
+                Array.prototype.push.apply(scene.gizmos, toolGizmos);
             }
 
             renderer.voxel.updateFrom(work.data);

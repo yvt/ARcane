@@ -37,6 +37,7 @@ interface State
 
     viewportPersistent: ViewportPersistent;
     editorState: EditorState;
+    lastSavedEditorState: EditorState;
 }
 
 export class App extends React.Component<AppProps, State>
@@ -44,6 +45,8 @@ export class App extends React.Component<AppProps, State>
     constructor(props: AppProps)
     {
         super(props);
+
+        const editorState = createEditorState();
 
         this.state = {
             fatalError: null,
@@ -54,7 +57,8 @@ export class App extends React.Component<AppProps, State>
             localWork: null,
 
             viewportPersistent: new ViewportPersistent(props.logManager),
-            editorState: createEditorState(),
+            editorState,
+            lastSavedEditorState: editorState,
         };
 
         this.initialize().catch(error => {
@@ -75,16 +79,18 @@ export class App extends React.Component<AppProps, State>
         // DEUBG: just use a pre-determined document name for now
         const localWork = await storage.works.open('default', false)
             .catch(() => storage.works.open('default', true));
+        const editorState = {
+            ...this.state.editorState,
+            workspace: {
+                work: localWork.work,
+                history: EditHistoryState.createEmpty(),
+            },
+        };
         this.setState({
             initializationStage: null,
             localWork,
-            editorState: {
-                ...this.state.editorState,
-                workspace: {
-                    work: localWork.work,
-                    history: EditHistoryState.createEmpty(),
-                },
-            },
+            editorState,
+            lastSavedEditorState: editorState,
         });
     }
 
@@ -95,14 +101,13 @@ export class App extends React.Component<AppProps, State>
             const newValue = reducer(state.editorState);
 
             // Save the changes
+            let savingWork: Work | null = null;
             if (
-                newValue.workspace && state.editorState.workspace &&
-                newValue.workspace.work !== state.editorState.workspace.work &&
+                newValue.workspace && state.lastSavedEditorState.workspace &&
+                newValue.workspace.work !== state.lastSavedEditorState.workspace.work &&
                 !newValue.workspace.history.isAnyEditActive
             ) {
-                this.setState({
-                    savingWork: newValue.workspace.work,
-                });
+                savingWork = newValue.workspace.work;
                 state.localWork!.update(newValue.workspace.work)
                     .then(() => {
                         this.setState((prevState: State) => {
@@ -119,6 +124,8 @@ export class App extends React.Component<AppProps, State>
 
             return {
                 editorState: newValue,
+                savingWork: savingWork || state.savingWork,
+                lastSavedEditorState: savingWork ? newValue : state.lastSavedEditorState,
             };
         });
     }

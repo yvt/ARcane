@@ -274,7 +274,7 @@ class LocalWorkImpl extends LocalWork
                 for (let z = minZ; z < maxZ; ++z) {
                     for (let y = minY; y < maxY; ++y) {
                         for (let x = minX; x < maxX; ++x) {
-                            const i = x + (y + (z << Layout.LOG_CHUNK_DIM) << Layout.LOG_CHUNK_DIM);
+                            const i = x + (y + (z << 10) << 10);
                             if (!dirty.has(i)) {
                                 dirty.set(i, {
                                     key: [this.id, i],
@@ -294,9 +294,9 @@ class LocalWorkImpl extends LocalWork
         // Copy the updated region immediately
         const {density, material} = newWork.data.data!;
         for (const ci of updated) {
-            const cx = ci & (Layout.CHUNK_SIZE - 1);
-            const cy = (ci >> Layout.LOG_CHUNK_SIZE) & (Layout.CHUNK_SIZE - 1);
-            const cz = (ci >> Layout.LOG_CHUNK_SIZE * 2) & (Layout.CHUNK_SIZE - 1);
+            const cx = ci & 0x3ff;
+            const cy = (ci >> 10) & 0x3ff;
+            const cz = (ci >> 20) & 0x3ff;
 
             let outIndex = 0;
             let inIndex = mapIndex(cx * Layout.CHUNK_SIZE, cy * Layout.CHUNK_SIZE, cz * Layout.CHUNK_SIZE);

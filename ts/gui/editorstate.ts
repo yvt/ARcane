@@ -33,6 +33,8 @@ export interface EditorState
     /** An integer in range `[0, 1]` */
     readonly activeMaterial: number;
 
+    readonly tool: 'attach';
+
     readonly workspace: Workspace | null;
 }
 
@@ -76,6 +78,7 @@ export function createEditorState(): EditorState
         activeColor: new UIRgbColor(0.2, 0.25, 0.4, 1),
         activeRoughness: 32,
         activeMaterial: 0,
+        tool: 'attach',
         workspace: null,
     };
 }

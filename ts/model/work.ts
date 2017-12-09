@@ -30,7 +30,7 @@ export interface WorkDataMutateContext
 {
     readonly data: WorkData;
 
-    markDirty(min: ReadonlyArray<number>, max: ReadonlyArray<number>): void;
+    markDirty(min: ArrayLike<number>, max: ArrayLike<number>): void;
 }
 
 export interface Aabb3
@@ -84,6 +84,14 @@ export class WorkDataVersion
      */
     get data(): WorkData | null { return this._data; }
 
+    expectData(): WorkData
+    {
+        if (!this._data) {
+            throw new Error("Out-dated");
+        }
+        return this._data;
+    }
+
     private constructor()
     {
     }
@@ -135,7 +143,7 @@ class WorkDataMutateContextImpl implements WorkDataMutateContext
     {
     }
 
-    markDirty(min: ReadonlyArray<number>, max: ReadonlyArray<number>): void
+    markDirty(min: ArrayLike<number>, max: ArrayLike<number>): void
     {
         if (this.dirtyRegion) {
             const dirtyRegion = this.dirtyRegion;

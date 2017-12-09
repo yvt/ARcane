@@ -65,6 +65,8 @@ export class EditHistoryState
         return this.history;
     }
 
+    get activeEdit(): Edit | null { return this.expectHistory().activeEdit; }
+
     get isAnyEditActive(): boolean { return this.expectHistory().activeEdit != null; }
 
     get canUndo(): boolean { return this.expectHistory().position > 0; }
@@ -105,6 +107,7 @@ export class EditHistoryState
 
         // And insert the finalized `Edit`
         history.timeline.push(editImpl);
+        history.position += 1;
 
         // TOOD: truncate the undo history to bound the memory usage
 
@@ -148,7 +151,7 @@ interface Chunk
     material: Uint32Array[];
 }
 
-abstract class Edit
+export abstract class Edit
 {
     /** The name of the edit operation displayed to the user. */
     name = '';
