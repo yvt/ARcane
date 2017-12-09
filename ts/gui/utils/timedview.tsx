@@ -59,7 +59,7 @@ export class TimedView extends React.PureComponent<TimedViewProps, State>
         }
         this.setState({ active: true });
         if (this.mounted) {
-            this.timer = window.setTimeout(this.handleTimeout, this.pending);
+            this.timer = window.setTimeout(this.handleTimeout, duration);
         } else {
             this.pending = duration;
         }

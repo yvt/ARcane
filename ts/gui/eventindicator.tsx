@@ -33,7 +33,9 @@ export class EventIndicator extends React.PureComponent<EventIndicatorProps, Sta
     display(message: string): void
     {
         this.setState({ message });
-
+        if (this.view) {
+            this.view.activateFor(3000);
+        }
     }
 
     render()
@@ -41,7 +43,7 @@ export class EventIndicator extends React.PureComponent<EventIndicatorProps, Sta
         return <TimedView ref={e => {this.view = e;}}
             activeClassName={classNames.active}
             inactiveClassName={classNames.inactive}>
-            { this.state.message }
+            <span>{ this.state.message }</span>
         </TimedView>;
     }
 }
