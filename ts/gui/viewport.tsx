@@ -24,7 +24,7 @@ export interface ViewportProps
     persistent: ViewportPersistent;
     editorState: EditorState;
 
-    onChangeEditorState: (newValue: EditorState) => void;
+    onChangeEditorState: (reducer: (old: EditorState) => EditorState) => void;
 }
 
 export interface State
@@ -136,24 +136,28 @@ export class Viewport extends React.Component<ViewportProps, State> implements V
     handleNeedsUpdate(): void { this.needsUpdate = true; }
 
     /// Required to implement `ViewportPersistentListener`
-    handleEditorStateUpdate(trans: (oldState: EditorState) => EditorState): void
+    handleEditorStateUpdate(reducer: (oldState: EditorState) => EditorState): void
     {
-        this.props.onChangeEditorState(trans(this.props.editorState));
+        this.props.onChangeEditorState(reducer);
     }
 
     /// Required to implement `ViewportPersistentListener`
     handleInputDeviceDetected(type: 'touch' | 'mouse'): void
     {
-        if (!this.props.editorState.inputDevicesInUse[type]) {
-            // The presence of a mouse was detected
-            this.props.onChangeEditorState({
-                ... this.props.editorState,
-                inputDevicesInUse: {
-                    ... this.props.editorState.inputDevicesInUse,
-                    [type]: true,
-                },
-            });
-        }
+        this.props.onChangeEditorState(state => {
+            if (!state.inputDevicesInUse[type]) {
+                // The presence of a mouse was detected
+                return {
+                    ... state,
+                    inputDevicesInUse: {
+                        ... this.props.editorState.inputDevicesInUse,
+                        [type]: true,
+                    },
+                };
+            } else {
+                return state;
+            }
+        });
     }
 
     /// Required to implement `ViewportPersistentListener`
@@ -206,19 +210,19 @@ export class Viewport extends React.Component<ViewportProps, State> implements V
     @bind
     private handleMouseEnter(): void
     {
-        this.props.onChangeEditorState({
-            ... this.props.editorState,
+        this.props.onChangeEditorState(state => ({
+            ... state,
             viewportHot: true,
-        });
+        }));
     }
 
     @bind
     private handleMouseLeave(): void
     {
-        this.props.onChangeEditorState({
-            ... this.props.editorState,
+        this.props.onChangeEditorState(state => ({
+            ... state,
             viewportHot: false,
-        });
+        }));
     }
 
     render()

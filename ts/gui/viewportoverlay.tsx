@@ -24,7 +24,7 @@ export interface ViewportOverlayProps
 {
     editorState: EditorState;
 
-    onChangeEditorState: (newValue: EditorState) => void;
+    onChangeEditorState: (reducer: (old: EditorState) => EditorState) => void;
 }
 
 interface State
@@ -87,37 +87,37 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
     @bind
     private handleDisplayModeChange(newValue: DisplayMode): void
     {
-        this.props.onChangeEditorState({
-            ... this.props.editorState,
+        this.props.onChangeEditorState(state => ({
+            ... state,
             displayMode: newValue,
-        });
+        }));
     }
 
     @bind
     private handleActiveColorChange(newValue: UIColor): void
     {
-        this.props.onChangeEditorState({
-            ... this.props.editorState,
+        this.props.onChangeEditorState(state => ({
+            ... state,
             activeColor: newValue,
-        });
+        }));
     }
 
     @bind
     private handleActiveMaterialChange(newValue: number): void
     {
-        this.props.onChangeEditorState({
-            ... this.props.editorState,
+        this.props.onChangeEditorState(state => ({
+            ... state,
             activeMaterial: newValue,
-        });
+        }));
     }
 
     @bind
     private handleActiveRoughnessChange(newValue: number): void
     {
-        this.props.onChangeEditorState({
-            ... this.props.editorState,
+        this.props.onChangeEditorState(state => ({
+            ... state,
             activeRoughness: Math.round(newValue * 63),
-        });
+        }));
     }
 
     @bind
@@ -154,14 +154,14 @@ export class ViewportOverlay extends React.Component<ViewportOverlayProps, State
         const {workspace} = this.props.editorState;
         const [work, actionName, history] = workspace.history[dir](workspace.work);
 
-        this.props.onChangeEditorState({
-            ... this.props.editorState,
+        this.props.onChangeEditorState(state => ({
+            ... state,
             workspace: {
                 ...this.props.editorState.workspace,
                 history,
                 work,
             },
-        });
+        }));
 
         this.eventIndicator!.display(`${dir === 'undo' ? 'Undo' : 'Redo'} ${actionName}`);
     }

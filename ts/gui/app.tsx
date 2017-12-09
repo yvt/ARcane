@@ -89,33 +89,37 @@ export class App extends React.Component<AppProps, State>
     }
 
     @bind
-    private handleEditorStateChange(newValue: EditorState): void
+    private handleEditorStateChange(reducer: (old: EditorState) => EditorState): void
     {
-        // Save the changes
-        if (
-            newValue.workspace && this.state.editorState.workspace &&
-            newValue.workspace.work !== this.state.editorState.workspace.work &&
-            !newValue.workspace.history.isAnyEditActive
-        ) {
-            this.setState({
-                savingWork: newValue.workspace.work,
-            });
-            this.state.localWork!.update(newValue.workspace.work)
-                .then(() => {
-                    this.setState((prevState: State) => {
-                        if (prevState.savingWork === newValue.workspace!.work) {
-                            return {
-                                savingWork: null,
-                            };
-                        } else {
-                            return {};
-                        }
-                    });
-                });
-        }
+        this.setState(state => {
+            const newValue = reducer(state.editorState);
 
-        this.setState({
-            editorState: newValue,
+            // Save the changes
+            if (
+                newValue.workspace && state.editorState.workspace &&
+                newValue.workspace.work !== state.editorState.workspace.work &&
+                !newValue.workspace.history.isAnyEditActive
+            ) {
+                this.setState({
+                    savingWork: newValue.workspace.work,
+                });
+                state.localWork!.update(newValue.workspace.work)
+                    .then(() => {
+                        this.setState((prevState: State) => {
+                            if (prevState.savingWork === newValue.workspace!.work) {
+                                return {
+                                    savingWork: null,
+                                };
+                            } else {
+                                return {};
+                            }
+                        });
+                    });
+            }
+
+            return {
+                editorState: newValue,
+            };
         });
     }
 
