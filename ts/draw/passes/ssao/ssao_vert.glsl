@@ -31,5 +31,5 @@ void main() {
     v_VSPosBase = u_InvProjMat * vec4(a_Position, 0.0, 1.0);
 
     v_DitherTexCoord.xy = u_DitherTexCoordFactor * v_TexCoord;
-    v_DitherTexCoord.wz = v_DitherTexCoord.xy + .25;
+    v_DitherTexCoord.wz = v_DitherTexCoord.xy + .125;
 }

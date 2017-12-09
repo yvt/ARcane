@@ -41,11 +41,15 @@ import { ConstantsShaderModuleFactory } from '../../shaderutils/constants';
 import { SsaoContext } from './toplevel';
 
 /** 4x4 Bayer matrix. */
-const DITHER16 = new Uint8Array([
-    0x00, 0x80, 0x20, 0xa0,
-    0xc0, 0x40, 0xe0, 0x60,
-    0x30, 0xb0, 0x10, 0x90,
-    0xf0, 0x70, 0xd0, 0x50,
+const DITHER64 = new Uint8Array([
+    0x00, 0x80, 0x20, 0xa0, 0x0c, 0x8c, 0x2c, 0xac,
+    0xc0, 0x40, 0xe0, 0x60, 0xcc, 0x4c, 0xec, 0x6c,
+    0x30, 0xb0, 0x10, 0x90, 0x3c, 0xbc, 0x1c, 0x9c,
+    0xf0, 0x70, 0xd0, 0x50, 0xfc, 0x7c, 0xdc, 0x5c,
+    0x08, 0x88, 0x28, 0xa8, 0x04, 0x84, 0x24, 0xa4,
+    0xc8, 0x48, 0xe8, 0x68, 0xc4, 0x44, 0xe4, 0x64,
+    0x38, 0xb8, 0x18, 0x98, 0x34, 0xb4, 0x14, 0x94,
+    0xf8, 0x78, 0xd8, 0x58, 0xf4, 0x74, 0xd4, 0x54,
 ]);
 
 export class SsaoGeneratePass
@@ -70,8 +74,8 @@ export class SsaoGeneratePass
         gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_S, GLConstants.REPEAT);
         gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.REPEAT);
 
-        gl.texImage2D(GLConstants.TEXTURE_2D, 0, GLConstants.LUMINANCE, 4, 4, 0,
-            GLConstants.LUMINANCE, GLConstants.UNSIGNED_BYTE, DITHER16);
+        gl.texImage2D(GLConstants.TEXTURE_2D, 0, GLConstants.LUMINANCE, 8, 8, 0,
+            GLConstants.LUMINANCE, GLConstants.UNSIGNED_BYTE, DITHER64);
     }
 
     dispose(): void
@@ -151,7 +155,7 @@ class SsaoOperator implements RenderOperator
         params.colorTexture.texture = this.color.texture;
 
         vec2.set(params.tsPixelOffset, 1 / this.g1.width, 1 / this.g1.height);
-        vec2.set(params.ditherTexCoordFactor, this.g1.width / 4, this.g1.height / 4);
+        vec2.set(params.ditherTexCoordFactor, this.g1.width / 8, this.g1.height / 8);
 
         const kernelSize = Math.max(1, Math.min(this.g1.width, this.g1.height) * 0.005);
         vec2.set(params.tsSampleOffsetFactor, kernelSize / this.g1.width, kernelSize / this.g1.height);

@@ -51,8 +51,8 @@ void main() {
     mediump vec4 sum = vec4(0.00000001);
     mediump float sum_weight = 0.00000001;
 
-    const mediump float depth_coef = 0.5;
-    const mediump float position_coef = 0.2;
+    mediump float depth_coef = 10.0 / cs_depths[4];
+    const mediump float position_coef = 0.1;
 
     for (lowp int i = 0; i < 8; ++i) {
         mediump float x = float(i - 4);
