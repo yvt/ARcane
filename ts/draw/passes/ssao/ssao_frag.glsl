@@ -163,7 +163,7 @@ void main() {
         // occlusion... It nonetheless does produces a somewhat visually
         // pleasant result.
         // (This SSAO implementation is based on Hyper3D, by the way.)
-        mediump float effect = (max(result, sample_cos) - result) * decay * depth_decay;
+        mediump float effect = 0.5 * max(sample_cos, 0.0) * decay * depth_decay;
         result += effect;
 
         // Radiosity approximation
