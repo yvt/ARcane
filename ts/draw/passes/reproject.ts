@@ -6,7 +6,7 @@
  */
 import { vec2, mat4 } from 'gl-matrix';
 
-import { downcast } from '../../utils/utils';
+import { downcast, table } from '../../utils/utils';
 
 import { TextureRenderBuffer, TextureRenderBufferInfo, TextureRenderBufferFormat } from '../renderbuffer';
 import { RenderOperation, RenderOperator, RenderBuffer, RenderBufferInfo, RenderPipeline } from '../scheduler';
@@ -14,7 +14,7 @@ import { GLFramebuffer } from '../globjs/framebuffer';
 import { GLContext, GLStateFlags, GLDrawBufferFlags } from '../globjs/context';
 import { GLConstants } from '../globjs/constants';
 import { QuadRenderer } from '../quad';
-import { Scene } from '../model';
+import { RenderState } from '../globals';
 import { Blitter, BlitterContext } from '../subpasses/blit';
 
 import {
@@ -33,22 +33,27 @@ export interface TemporalRerojectionPassContext
 {
     readonly context: GLContext;
     readonly blitter: Blitter;
-    readonly scene: Scene;
+    readonly state: RenderState;
     readonly quad: QuadRenderer;
+}
+
+enum ShaderFlags
+{
+    DILATE = 1,
 }
 
 export class TemporalRerojectionPass
 {
-    shaderInstance: TypedShaderInstance<ReprojectShaderInstance, ReprojectShaderParam>;
+    shaderInstance: TypedShaderInstance<ReprojectShaderInstance, ReprojectShaderParam>[];
 
     constructor(public readonly context: TemporalRerojectionPassContext)
     {
         const {gl} = context.context;
 
-        this.shaderInstance = buildShaderTyped
+        this.shaderInstance = table(2, i => buildShaderTyped
             <ReprojectShaderModule, ReprojectShaderInstance, ReprojectShaderParam>
-            (builder => new ReprojectShaderModule(builder))
-            .compile(context.context);
+            (builder => new ReprojectShaderModule(builder, i))
+            .compile(context.context));
     }
 
     dispose(): void
@@ -58,6 +63,7 @@ export class TemporalRerojectionPass
     setupReproject(
         g1: TextureRenderBufferInfo,
         format: TextureRenderBufferFormat,
+        mode: 'crisp' | 'smooth',
         ops: RenderOperation<GLContext>[]
     ): {
         reprojected: TextureRenderBufferInfo;
@@ -65,7 +71,7 @@ export class TemporalRerojectionPass
     }
     {
         const {width, height} = g1;
-        const chain = new ChainRenderBufferInfo('Chain');
+        const chain = new ChainRenderBufferInfo('Chain', mode);
         const reprojected = new TextureRenderBufferInfo(
             "Reprojected",
             width, height,
@@ -82,6 +88,7 @@ export class TemporalRerojectionPass
                 downcast(TextureRenderBuffer, cfg.outputs['reprojected']),
                 downcast(ChainRenderBuffer, cfg.outputs['chain']),
                 downcast(TextureRenderBuffer, cfg.inputs['g1']),
+                mode,
             ),
         });
 
@@ -128,9 +135,13 @@ export class TemporalRerojectionPass
     }
 }
 
+let chainId = 1;
+
 export class ChainRenderBufferInfo extends RenderBufferInfo<GLContext>
 {
-    constructor(name: string)
+    private id = chainId++;
+
+    constructor(name: string, public readonly mode: 'crisp' | 'smooth')
     {
         super(name);
 
@@ -138,15 +149,15 @@ export class ChainRenderBufferInfo extends RenderBufferInfo<GLContext>
     }
     create(manager: RenderPipeline<GLContext>): ChainRenderBuffer
     {
-        return new ChainRenderBuffer();
+        return new ChainRenderBuffer(this.mode);
     }
     get physicalFormatDescription(): string
     {
-        return "External";
+        return `Chain #${this.id}`;
     }
     get logicalFormatDescription(): string
     {
-        return "Untyped";
+        return "None";
     }
 }
 
@@ -160,6 +171,8 @@ class ChainRenderBuffer implements RenderBuffer
         format: TextureRenderBufferFormat;
     } | null = null;
     matrix = mat4.create();
+
+    constructor(public readonly mode: 'crisp' | 'smooth') {}
 
     free(): void
     {
@@ -181,7 +194,6 @@ class ChainRenderBuffer implements RenderBuffer
 
 class SaveOperator implements RenderOperator
 {
-    private shaderParams: TypedShaderParameter<ReprojectShaderParam>;
     private framebuffer: GLFramebuffer | null = null;
 
     constructor(
@@ -191,8 +203,6 @@ class SaveOperator implements RenderOperator
         private input: TextureRenderBuffer,
     )
     {
-        this.shaderParams = pass.shaderInstance.createParameter();
-
         if (output !== input) {
             this.framebuffer = GLFramebuffer.createFramebuffer(
                 pass.context.context,
@@ -215,7 +225,8 @@ class SaveOperator implements RenderOperator
     perform(): void
     {
         const {pass, chain} = this;
-        const {context, blitter, scene} = pass.context;
+        const {context, blitter, state} = pass.context;
+        const {scene} = state;
         const {gl} = context;
 
         // Re-create the reprojection buffer if needed
@@ -229,8 +240,13 @@ class SaveOperator implements RenderOperator
 
             const texture = gl.createTexture()!;
             gl.bindTexture(GLConstants.TEXTURE_2D, texture);
-            gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.NEAREST);
-            gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.NEAREST);
+            if (chain.mode === 'crisp') {
+                gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.NEAREST);
+                gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.NEAREST);
+            } else {
+                gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MAG_FILTER, GLConstants.LINEAR);
+                gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_MIN_FILTER, GLConstants.LINEAR);
+            }
             gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_S, GLConstants.CLAMP_TO_EDGE);
             gl.texParameteri(GLConstants.TEXTURE_2D, GLConstants.TEXTURE_WRAP_T, GLConstants.CLAMP_TO_EDGE);
             gl.texImage2D(
@@ -283,7 +299,10 @@ class SaveOperator implements RenderOperator
         }
 
         // Also save the matrix
-        mat4.multiply(chain.matrix, scene.projectionMatrix, scene.viewMatrix);
+        const projectionMatrix = chain.mode === 'smooth'
+            ? state.scene.projectionMatrix
+            : state.renderProjectionMatrix;
+        mat4.multiply(chain.matrix, projectionMatrix, scene.viewMatrix);
     }
 
     afterRender(): void { }
@@ -291,6 +310,7 @@ class SaveOperator implements RenderOperator
 
 class ReprojectOperator implements RenderOperator
 {
+    private shaderFlags: ShaderFlags;
     private shaderParams: TypedShaderParameter<ReprojectShaderParam>;
     private framebuffer: GLFramebuffer;
 
@@ -299,9 +319,11 @@ class ReprojectOperator implements RenderOperator
         private output: TextureRenderBuffer,
         private chain: ChainRenderBuffer,
         private g1: TextureRenderBuffer,
+        private mode: 'crisp' | 'smooth',
     )
     {
-        this.shaderParams = pass.shaderInstance.createParameter();
+        this.shaderFlags = (mode === 'smooth' ? ShaderFlags.DILATE : 0);
+        this.shaderParams = pass.shaderInstance[this.shaderFlags].createParameter();
 
         this.framebuffer = GLFramebuffer.createFramebuffer(
             pass.context.context,
@@ -318,7 +340,8 @@ class ReprojectOperator implements RenderOperator
     perform(): void
     {
         const {pass, chain} = this;
-        const {context, quad, scene} = pass.context;
+        const {context, quad, state} = pass.context;
+        const {scene} = state;
         const {gl} = context;
 
         context.framebuffer = this.framebuffer;
@@ -338,12 +361,18 @@ class ReprojectOperator implements RenderOperator
         params.g1Texture.texture = this.g1.texture;
         params.inputTexture.texture = chain.buffer.texture;
 
-        // `reprojectionMatrix` = P ⋅ V ⋅ V⁻¹ ⋅ P⁻¹
-        mat4.multiply(params.reprojectionMatrix, scene.projectionMatrix, scene.viewMatrix);
+        // `reprojectionMatrix` = P' ⋅ V' ⋅ V⁻¹ ⋅ P⁻¹
+        const projectionMatrix = this.mode === 'smooth'
+            ? state.scene.projectionMatrix
+            : state.renderProjectionMatrix;
+
+        mat4.multiply(params.reprojectionMatrix, projectionMatrix, scene.viewMatrix);
         mat4.invert(params.reprojectionMatrix, params.reprojectionMatrix);
         mat4.multiply(params.reprojectionMatrix, chain.matrix, params.reprojectionMatrix);
 
-        const {shaderInstance} = pass;
+        vec2.set(params.tsOffset, 2 / chain.buffer.width, 2 / chain.buffer.height);
+
+        const shaderInstance = pass.shaderInstance[this.shaderFlags];
         gl.useProgram(shaderInstance.program.handle);
         shaderInstance.apply(this.shaderParams);
 
@@ -358,6 +387,7 @@ interface ReprojectShaderParam
     g1Texture: TextureShaderParameter;
     inputTexture: TextureShaderParameter;
     reprojectionMatrix: mat4;
+    tsOffset: vec2;
 }
 
 class ReprojectShaderModule extends ShaderModule<ReprojectShaderInstance, ReprojectShaderParam>
@@ -366,20 +396,23 @@ class ReprojectShaderModule extends ShaderModule<ReprojectShaderInstance, Reproj
         u_ReprojectionMatrix: string;
         g1Texture: string;
         inputTexture: string;
+        DILATE: string;
     }>(fragModule);
     private readonly vertChunk = new PieShaderChunk<{
         u_ReprojectionMatrix: string;
+        u_TSOffset: string;
         a_Position: string;
     }>(vertModule);
 
     readonly a_Position = this.vertChunk.bindings.a_Position;
 
     readonly u_ReprojectionMatrix = this.fragChunk.bindings.u_ReprojectionMatrix;
+    readonly u_TSOffset = this.vertChunk.bindings.u_TSOffset;
 
     readonly g1Texture: Texture2DShaderObject;
     readonly inputTexture: Texture2DShaderObject;
 
-    constructor(builder: ShaderBuilder)
+    constructor(builder: ShaderBuilder, flags: ShaderFlags)
     {
         super(builder);
 
@@ -390,6 +423,9 @@ class ReprojectShaderModule extends ShaderModule<ReprojectShaderInstance, Reproj
             // child object
             g1Texture: this.g1Texture.u_Texture,
             inputTexture: this.inputTexture.u_Texture,
+
+            // static parameters
+            DILATE: `${flags & ShaderFlags.DILATE}`,
         });
         this.vertChunk.inherit(this.fragChunk);
 
@@ -414,6 +450,7 @@ class ReprojectShaderInstance extends ShaderModuleInstance<ReprojectShaderParam>
     private readonly inputTexture: Texture2DShaderInstance;
 
     private readonly u_ReprojectionMatrix: WebGLUniformLocation;
+    private readonly u_TSOffset: WebGLUniformLocation;
 
     constructor(builder: ShaderInstanceBuilder, parent: ReprojectShaderModule)
     {
@@ -423,6 +460,7 @@ class ReprojectShaderInstance extends ShaderModuleInstance<ReprojectShaderParam>
         this.a_Position = gl.getAttribLocation(builder.program.handle, parent.a_Position);
 
         this.u_ReprojectionMatrix = gl.getUniformLocation(builder.program.handle, parent.u_ReprojectionMatrix)!;
+        this.u_TSOffset = gl.getUniformLocation(builder.program.handle, parent.u_TSOffset)!;
 
         this.g1Texture = builder.getUnwrap(parent.g1Texture);
         this.inputTexture = builder.getUnwrap(parent.inputTexture);
@@ -434,6 +472,7 @@ class ReprojectShaderInstance extends ShaderModuleInstance<ReprojectShaderParam>
             g1Texture: builder.getUnwrap(this.g1Texture),
             inputTexture: builder.getUnwrap(this.inputTexture),
             reprojectionMatrix: mat4.create(),
+            tsOffset: vec2.create(),
         };
     }
 
@@ -442,6 +481,7 @@ class ReprojectShaderInstance extends ShaderModuleInstance<ReprojectShaderParam>
         const {gl} = this.context;
 
         gl.uniformMatrix4fv(this.u_ReprojectionMatrix, false, param.reprojectionMatrix);
+        gl.uniform2f(this.u_TSOffset, param.tsOffset[0], param.tsOffset[1]);
     }
 }
 

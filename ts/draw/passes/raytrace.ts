@@ -17,7 +17,7 @@ import { RenderOperation, RenderOperator } from '../scheduler';
 import { GLFramebuffer } from '../globjs/framebuffer';
 import { GLContext, GLStateFlags, GLDrawBufferFlags } from '../globjs/context';
 import { QuadRenderer } from '../quad';
-import { Scene } from '../model';
+import { RenderState } from '../globals';
 import { VoxelData } from '../voxeldata';
 
 import {
@@ -41,7 +41,7 @@ export interface RaytraceContext
 {
     readonly context: GLContext;
     readonly quad: QuadRenderer;
-    readonly scene: Scene;
+    readonly state: RenderState;
     readonly voxel: VoxelData;
 }
 
@@ -120,8 +120,9 @@ class RaytraceOperator implements RenderOperator
     perform(): void
     {
         const {pass} = this;
-        const {context, quad, scene, voxel} = pass.context;
+        const {context, quad, state, voxel} = pass.context;
         const {gl} = context;
+        const {scene} = state;
 
         let flags: ShaderFlags = 0;
         if (scene.skipScene) {
@@ -131,7 +132,7 @@ class RaytraceOperator implements RenderOperator
         const shaderInstance = pass.shaderInstance[flags];
         const shaderParams = this.shaderParams[flags];
         const params = shaderParams.root;
-        mat4.mul(params.viewProjMat, scene.projectionMatrix, scene.viewMatrix);
+        mat4.mul(params.viewProjMat, state.renderProjectionMatrix, scene.viewMatrix);
         mat4.invert(params.invViewProjMat, params.viewProjMat);
         params.voxelData.voxelData = voxel;
         params.depthNear = scene.depthNear;

@@ -17,7 +17,7 @@ import { RenderOperation, RenderOperator } from '../scheduler';
 import { GLFramebuffer } from '../globjs/framebuffer';
 import { GLContext, GLStateFlags, GLDrawBufferFlags } from '../globjs/context';
 import { QuadRenderer } from '../quad';
-import { Scene } from '../model';
+import { RenderState } from '../globals';
 import { VoxelData } from '../voxeldata';
 import { CameraImage } from '../cameraimage';
 import { EnvironmentEstimatorClient } from '../worker/envestimator_client';
@@ -48,7 +48,7 @@ export interface GlobalLightingContext
 {
     readonly context: GLContext;
     readonly quad: QuadRenderer;
-    readonly scene: Scene;
+    readonly state: RenderState;
     readonly voxel: VoxelData;
     readonly cameraImage: CameraImage;
     readonly environmentEstimator: EnvironmentEstimatorClient;
@@ -96,7 +96,7 @@ export class GlobalLightingPass
                 downcast(TextureRenderBuffer, cfg.outputs['lit']),
                 downcast(TextureRenderBuffer, cfg.inputs['g1']),
                 downcast(TextureRenderBuffer, cfg.inputs['ssao']),
-                this.context.scene.enableAR,
+                this.context.state.scene.enableAR,
             ),
         });
 
@@ -145,11 +145,12 @@ class GlobalLightingOperator implements RenderOperator
     perform(): void
     {
         const {pass} = this;
-        const {context, quad, scene, voxel, cameraImage} = pass.context;
+        const {context, quad, state, voxel, cameraImage} = pass.context;
+        const {scene} = state;
         const {gl} = context;
 
         const params = this.shaderParams.root;
-        mat4.mul(params.viewProjMat, scene.projectionMatrix, scene.viewMatrix);
+        mat4.mul(params.viewProjMat, state.renderProjectionMatrix, scene.viewMatrix);
         mat4.invert(params.invViewProjMat, params.viewProjMat);
         params.voxelData.voxelData = voxel;
         params.g1Texture.texture = this.g1.texture;

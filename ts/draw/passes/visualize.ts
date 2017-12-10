@@ -79,12 +79,14 @@ class VisualizeColorBufferOperator implements RenderOperator
         const {context} = this.context;
         const {gl} = context;
 
-        // should cost nothing if we omit the clear operation (because
-        // `preserveDrawingBuffer` is `false` by default)
         context.framebuffer = null;
         context.states = GLStateFlags.Default;
         context.drawBuffers = GLDrawBufferFlags.BackColor | GLDrawBufferFlags.ColorRGBA;
         gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+        gl.clearColor(0, 0, 0, 1);
+        gl.clear(GLConstants.COLOR_BUFFER_BIT);
+        context.drawBuffers = GLDrawBufferFlags.BackColor |
+            GLDrawBufferFlags.ColorRed | GLDrawBufferFlags.ColorGreen | GLDrawBufferFlags.ColorBlue;
 
         const {blitter} = this.context;
         vec2.set(blitter.params.inputMin, 0, 0);

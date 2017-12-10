@@ -25,8 +25,10 @@ import { GizmoPass } from './passes/gizmo';
 import { VisualizeColorBufferPass } from './passes/visualize';
 import { SsaoPass } from './passes/ssao/toplevel';
 import { TemporalRerojectionPass } from './passes/reproject';
+import { TemporalAAPass } from './passes/temporalaa';
 
 import { Scene, CameraImageData } from './model';
+import { RenderState } from './globals';
 import { VoxelData, VoxelDataManager } from './voxeldata';
 import { CameraImage } from './cameraimage';
 
@@ -46,6 +48,7 @@ export class Renderer
     private readonly globalLightingPass: GlobalLightingPass;
     private readonly gizmoPass: GizmoPass;
     private readonly visualizeColorBufferPass: VisualizeColorBufferPass;
+    private readonly temporalAAPass: TemporalAAPass;
 
     private lastWidth = 0;
     private lastHeight = 0;
@@ -55,6 +58,7 @@ export class Renderer
     readonly voxelManager: VoxelDataManager;
     readonly voxel: VoxelData;
     readonly cameraImage: CameraImage;
+    readonly state: RenderState;
 
     private worker: WorkerClient;
     environmentEstimator: EnvironmentEstimatorClient;
@@ -80,6 +84,7 @@ export class Renderer
         this.voxelManager = new VoxelDataManager(this);
         this.voxel = this.voxelManager.createVoxelData();
         this.cameraImage = new CameraImage(this.context);
+        this.state = new RenderState(this);
 
         this.profiler = new Profiler(this.context.ext.EXT_disjoint_timer_query, log.getLogger(TOPICS.PROFILER));
         this.pipeline = new RenderPipeline(log.getLogger(TOPICS.SCHEDULER), this.profiler, this.context);
@@ -93,6 +98,7 @@ export class Renderer
         this.globalLightingPass = new GlobalLightingPass(this);
         this.gizmoPass = new GizmoPass(this);
         this.visualizeColorBufferPass = new VisualizeColorBufferPass(this);
+        this.temporalAAPass = new TemporalAAPass(this);
 
         this.worker = workerFactory();
         this.environmentEstimator = new EnvironmentEstimatorClient({
@@ -115,6 +121,7 @@ export class Renderer
         this.globalLightingPass.dispose();
         this.gizmoPass.dispose();
         this.visualizeColorBufferPass.dispose();
+        this.temporalAAPass.dispose();
 
         this.voxel.dispose();
         this.cameraImage.dispose();
@@ -133,13 +140,18 @@ export class Renderer
             ops,
         );
 
-        const { reprojected, chain } = this.reprojectPass.setupReproject(g1, TextureRenderBufferFormat.RGBA8, ops);
+        const sceneReprojection = this.reprojectPass.setupReproject(g1, TextureRenderBufferFormat.RGBA8, 'crisp', ops);
 
-        const ssao = this.ssaoPass.setup(g1, reprojected, ops);
+        const ssao = this.ssaoPass.setup(g1, sceneReprojection.reprojected, ops);
 
         let lit = this.globalLightingPass.setup(g1, ssao, ops);
 
-        lit = this.reprojectPass.setupSave(lit, chain, ops);
+        lit = this.reprojectPass.setupSave(lit, sceneReprojection.chain, ops);
+
+        // Temporal antialias
+        const aaReprojection = this.reprojectPass.setupReproject(g1, TextureRenderBufferFormat.RGBA8, 'smooth', ops);
+        lit = this.temporalAAPass.setup(lit, aaReprojection.reprojected, ops);
+        lit = this.reprojectPass.setupSave(lit, aaReprojection.chain, ops);
 
         const litWithGizmos = this.gizmoPass.setup(g1, lit, ops);
 
@@ -167,6 +179,8 @@ export class Renderer
             this.lastEnableAR = this.scene.enableAR;
             this.compilePipeline();
         }
+
+        this.state.update(this.lastWidth, this.lastHeight);
 
         this.context.begin();
         this.profiler.beginFrame();
