@@ -4,6 +4,7 @@
  * This file is a part of ARcane. Please read the license text that
  * comes with the source code for use conditions.
  */
+import { vec3 } from 'gl-matrix';
 import { IDisposable } from '../utils/interfaces';
 import { assertEq } from '../utils/utils';
 import { setBitArrayRange, findOneInBitArray, findZeroInBitArray } from '../utils/bits';
@@ -81,6 +82,7 @@ export abstract class VoxelData implements IDisposable
 {
     densityTex: WebGLTexture;
     materialTex: WebGLTexture;
+    extents: vec3;
 
     abstract dispose(): void;
     abstract updateFrom(workDataVersion: WorkDataVersion): void;
@@ -91,6 +93,8 @@ class VoxelDataImpl extends VoxelData
     private densityData: Uint8Array[] = [];
     private materialData = new Uint32Array(Layout.SIZE * Layout.D1 * Layout.SIZE * Layout.D2);
     private materialDataBytes: Uint8Array;
+
+    extents = vec3.fromValues(Layout.SIZE, Layout.SIZE, Layout.SIZE);
 
     constructor(private readonly context: VoxelDataContext)
     {

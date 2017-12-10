@@ -4,7 +4,7 @@
  * This file is a part of ARcane. Please read the license text that
  * comes with the source code for use conditions.
  */
-import { mat4 } from 'gl-matrix';
+import { vec3, mat4 } from 'gl-matrix';
 
 import { downcast, table } from '../../utils/utils';
 
@@ -136,6 +136,7 @@ class RaytraceOperator implements RenderOperator
         params.voxelData.voxelData = voxel;
         params.depthNear = scene.depthNear;
         params.depthFar = scene.depthFar;
+        vec3.copy(params.extents, pass.context.voxel.extents);
 
         if (scene.skipScene) {
             params.depthNear = params.depthFar;
@@ -164,6 +165,7 @@ interface RaytraceShaderParam
     voxelData: VoxelDataShaderParam;
     depthNear: number;
     depthFar: number;
+    extents: vec3;
 }
 
 class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, RaytraceShaderParam>
@@ -171,6 +173,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
     private readonly fragChunk = new PieShaderChunk<{
         u_ViewProjMat: string;
         u_DepthRange: string;
+        u_Extents: string;
         fetchVoxelDensity: string;
         u14fp16Encode: string;
         cubeFaceFromIndex: string;
@@ -187,6 +190,7 @@ class RaytraceShaderModule extends ShaderModule<RaytraceShaderInstance, Raytrace
     readonly u_InvViewProjMat = this.vertChunk.bindings.u_InvViewProjMat;
     readonly u_ViewProjMat = this.fragChunk.bindings.u_ViewProjMat;
     readonly u_DepthRange = this.fragChunk.bindings.u_DepthRange;
+    readonly u_Extents = this.fragChunk.bindings.u_Extents;
 
     readonly voxelData: VoxelDataShaderObject;
 
@@ -231,6 +235,7 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
     readonly u_InvViewProjMat: WebGLUniformLocation;
     readonly u_ViewProjMat: WebGLUniformLocation;
     readonly u_DepthRange: WebGLUniformLocation;
+    readonly u_Extents: WebGLUniformLocation;
 
     private readonly voxelData: VoxelDataShaderInstance;
 
@@ -243,6 +248,7 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
         this.u_InvViewProjMat = gl.getUniformLocation(builder.program.handle, parent.u_InvViewProjMat)!;
         this.u_ViewProjMat = gl.getUniformLocation(builder.program.handle, parent.u_ViewProjMat)!;
         this.u_DepthRange = gl.getUniformLocation(builder.program.handle, parent.u_DepthRange)!;
+        this.u_Extents = gl.getUniformLocation(builder.program.handle, parent.u_Extents)!;
 
         this.voxelData = builder.getUnwrap(parent.voxelData);
     }
@@ -255,6 +261,7 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
             voxelData: builder.getUnwrap(this.voxelData),
             depthNear: 0,
             depthFar: 0,
+            extents: vec3.create(),
         };
     }
 
@@ -265,6 +272,7 @@ class RaytraceShaderInstance extends ShaderModuleInstance<RaytraceShaderParam>
         gl.uniformMatrix4fv(this.u_InvViewProjMat, false, param.invViewProjMat);
         gl.uniformMatrix4fv(this.u_ViewProjMat, false, param.viewProjMat);
         gl.uniform2f(this.u_DepthRange, param.depthNear, param.depthFar);
+        gl.uniform3f(this.u_Extents, param.extents[0], param.extents[1], param.extents[2]);
     }
 }
 

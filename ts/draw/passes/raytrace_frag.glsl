@@ -8,6 +8,7 @@
 // exports
 #pragma global u_ViewProjMat
 #pragma global u_DepthRange
+#pragma global u_Extents
 #pragma global SKIP_MODEL
 
 // imports
@@ -27,6 +28,7 @@
 
 uniform highp mat4 u_ViewProjMat;
 uniform highp vec2 u_DepthRange;
+uniform highp vec3 u_Extents;
 
 varying highp vec4 v_RayStart;
 varying highp vec4 v_RayEnd;
@@ -69,11 +71,11 @@ bool voxelTrace(
     highp vec3 rayDir = normalize(rayEnd - rayStart);
 
     clipRay(rayStart, rayEnd, rayDir, vec3(1.0, 0.0, 0.0), 0.0);
-    clipRay(rayStart, rayEnd, rayDir, vec3(-1.0, 0.0, 0.0), 256.0);
+    clipRay(rayStart, rayEnd, rayDir, vec3(-1.0, 0.0, 0.0), u_Extents.x);
     clipRay(rayStart, rayEnd, rayDir, vec3(0.0, 1.0, 0.0), 0.0);
-    clipRay(rayStart, rayEnd, rayDir, vec3(0.0, -1.0, 0.0), 256.0);
+    clipRay(rayStart, rayEnd, rayDir, vec3(0.0, -1.0, 0.0), u_Extents.y);
     clipRay(rayStart, rayEnd, rayDir, vec3(0.0, 0.0, 1.0), 0.0);
-    clipRay(rayStart, rayEnd, rayDir, vec3(0.0, 0.0, -1.0), 256.0);
+    clipRay(rayStart, rayEnd, rayDir, vec3(0.0, 0.0, -1.0), u_Extents.z);
 
     hitNormalIndex = -16.0;
 

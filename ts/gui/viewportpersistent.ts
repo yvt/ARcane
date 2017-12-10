@@ -603,6 +603,12 @@ export class ViewportPersistent implements IDisposable
             }
 
             renderer.voxel.updateFrom(work.data);
+            vec3.set(
+                renderer.voxel.extents,
+                work.props.extents[0] + 1,
+                work.props.extents[1] + 1,
+                work.props.extents[2] + 1,
+            );
         } else {
             scene.skipScene = true;
         }

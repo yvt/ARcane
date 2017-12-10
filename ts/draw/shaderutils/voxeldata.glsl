@@ -8,12 +8,15 @@
 // exports
 #pragma global fetchVoxelDensity
 #pragma global fetchVoxelMaterial
+#pragma global u_Extents
 
 // imports
 #pragma global densityTextureSampler
 #pragma global materialTextureSampler
 #pragma global fetchVoxelDensityCommon
 #pragma global fetchVoxelMaterialCommon
+
+uniform highp vec3 u_extents;
 
 mediump float fetchVoxelDensity(highp vec3 voxel, mediump float lod) {
     return fetchVoxelDensityCommon(
