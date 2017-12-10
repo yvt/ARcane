@@ -79,7 +79,7 @@ export interface ARController
     readonly ctx: Canvas2DContextAttributes;
     readonly videoWidth: number;
     readonly videoHeight: number;
-    orientation: 'landscape' | 'portrait';
+    readonly orientation: 'landscape' | 'portrait';
 
     readonly id: number;
 

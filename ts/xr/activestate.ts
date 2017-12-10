@@ -110,9 +110,28 @@ export class ARActiveState
     get projectionMatrix(): mat4
     {
         const m = mat4.create();
-        m.set(this.arController.getCameraMatrix());
+        const src = this.arController.getCameraMatrix();
+        m.set(src);
+
+        if (this.arController.orientation === 'portrait') {
+            // Rotate by 90deg
+            for (let i = 0; i < 16; i += 4) {
+                m[i + 0] = -src[i + 1];
+                m[i + 1] = +src[i + 0];
+            }
+        }
+
         return m;
     }
+
+    /**
+     * The orientation of the camera image.
+     *
+     * Note that `lastProcessedImage` is always oriented in landscape. This
+     * means that you have to apply rotation manually if `orientation` is
+     * `'portrait'`.
+     */
+    get orientetion() { return this.arController.orientation; }
 
     get lastProcessedImage(): ImageData | undefined
     {

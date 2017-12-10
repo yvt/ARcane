@@ -1001,6 +1001,12 @@
 
 		this.ctx.save();
 
+		if (image.videoHeight > image.videoWidth) {
+			this.orientation = 'portrait';
+		} else {
+			this.orientation = 'landscape';
+		}
+
 		if (this.orientation === 'portrait') {
 			this.ctx.translate(this.canvas.width, 0);
 			this.ctx.rotate(Math.PI/2);
@@ -1275,6 +1281,8 @@
 				var w = f * video.videoWidth;
 				var h = f * video.videoHeight;
 				if (video.videoWidth < video.videoHeight) {
+					// The internal buffer of `ARController` must be landscape
+					// because the camera parameter is calibrated for that
 					var tmp = w;
 					w = h;
 					h = tmp;

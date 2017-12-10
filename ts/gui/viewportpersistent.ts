@@ -476,6 +476,11 @@ export class ViewportPersistent implements IDisposable
                     [0.5 * scaleX, -0.5 * scaleY, 0]
                 );
 
+                if (activeState.orientetion === 'portrait') {
+                    // The internally saved image is always oriented in landscape
+                    mat4.rotateZ(scene.cameraTextureMatrix, scene.cameraTextureMatrix, Math.PI / -2);
+                }
+
                 scene.skipScene = !activeState.markerFound;
 
                 // Derive the matrices
