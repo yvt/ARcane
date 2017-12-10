@@ -189,6 +189,12 @@ class AttachEditTool extends EditTool
             return state.workspace;
         }
 
+        // Do not overwrite
+        const index = data.mapIndex(pos[0], pos[1], pos[2]);
+        if (data.density[index] >= 128) {
+            return state.workspace;
+        }
+
         // Mutate the data
         const boundsMin = pos;
         const boundsMax = vec3.fromValues(pos[0] + 1, pos[1] + 1, pos[2] + 1);
@@ -200,7 +206,6 @@ class AttachEditTool extends EditTool
                 ...state.workspace.work,
                 data: state.workspace.work.data.mutate(context => {
                     const {data} = context;
-                    const index = data.mapIndex(pos[0], pos[1], pos[2]);
                     data.density[index] = 255;
                     data.material[index] = editorStateMaterial(state);
                     context.markDirty(boundsMin, boundsMax);
