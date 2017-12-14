@@ -9,7 +9,8 @@ import { mat4 } from 'gl-matrix';
 
 import { Host, Channel } from '../../utils/workertransport';
 import {
-    EnvironmentEstimatorParam, EnvironmentEstimatorInput, EnvironmentEstimatorOutput, EnvironmentEstimatorConstants
+    EnvironmentEstimatorParam, EnvironmentEstimatorInput, EnvironmentEstimatorOutput, EnvironmentEstimatorConstants,
+    BlurInputOutput,
 } from './envestimator';
 
 import { GLContext } from '../globjs/context';
@@ -18,6 +19,7 @@ import { Scene, CameraImageData } from '../model';
 
 const LOG_SIZE = EnvironmentEstimatorConstants.LOG_SIZE;
 const SIZE = EnvironmentEstimatorConstants.SIZE;
+const NUM_STATIC_LEVELS = EnvironmentEstimatorConstants.NUM_STATIC_LEVELS;
 
 export interface EnvironmentEstimatorContext
 {
@@ -30,10 +32,13 @@ export class EnvironmentEstimatorClient
 {
     private input: Channel<EnvironmentEstimatorInput>;
     private output: Channel<EnvironmentEstimatorOutput>;
+    private blurInOut: Channel<BlurInputOutput>;
 
-    texture: WebGLTexture;
+    /** Environment map updated in real-time based on the camera input. */
+    realtimeTexture: WebGLTexture;
 
-    private response: false | true | EnvironmentEstimatorOutput = true;
+    /** Environment map generated from a static image. */
+    staticTexture: WebGLTexture;
 
     onPerformanceProfile: ((text: string) => void) | null = null;
 
@@ -41,10 +46,28 @@ export class EnvironmentEstimatorClient
     {
         this.input = context.host.open();
         this.output = context.host.open();
+        this.blurInOut = context.host.open();
 
         const {gl} = context.context;
-        this.texture = gl.createTexture()!;
-        gl.bindTexture(GLConstants.TEXTURE_CUBE_MAP, this.texture);
+        this.realtimeTexture = gl.createTexture()!;
+        gl.bindTexture(GLConstants.TEXTURE_CUBE_MAP, this.realtimeTexture);
+        gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_MAG_FILTER, GLConstants.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_MIN_FILTER, GLConstants.LINEAR_MIPMAP_LINEAR);
+        gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_WRAP_S, GLConstants.CLAMP_TO_EDGE);
+        gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_WRAP_T, GLConstants.CLAMP_TO_EDGE);
+
+        for (let i = 0; i <= LOG_SIZE; ++i) {
+            for (let k = 0; k < 6; ++k) {
+                gl.texImage2D(GLConstants.TEXTURE_CUBE_MAP_POSITIVE_X + k, i,
+                    GLConstants.SRGB_ALPHA_EXT, SIZE >> i, SIZE >> i, 0,
+                    GLConstants.SRGB_ALPHA_EXT,
+                    GLConstants.UNSIGNED_BYTE,
+                    null);
+            }
+        }
+
+        this.staticTexture = gl.createTexture()!;
+        gl.bindTexture(GLConstants.TEXTURE_CUBE_MAP, this.staticTexture);
         gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_MAG_FILTER, GLConstants.LINEAR_MIPMAP_LINEAR);
         gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_MIN_FILTER, GLConstants.LINEAR_MIPMAP_LINEAR);
         gl.texParameteri(GLConstants.TEXTURE_CUBE_MAP, GLConstants.TEXTURE_WRAP_S, GLConstants.CLAMP_TO_EDGE);
@@ -65,7 +88,8 @@ export class EnvironmentEstimatorClient
 
     dispose(): void
     {
-        this.context.context.gl.deleteTexture(this.texture);
+        this.context.context.gl.deleteTexture(this.realtimeTexture);
+        this.context.context.gl.deleteTexture(this.staticTexture);
     }
 
     get bootParam(): EnvironmentEstimatorParam
@@ -73,8 +97,11 @@ export class EnvironmentEstimatorClient
         return {
             environmentEstimatorInput: this.input.id,
             environmentEstimatorOutput: this.output.id,
+            blurInputOutput: this.blurInOut.id,
         };
     }
+
+    private response: false | true | EnvironmentEstimatorOutput = true;
 
     update(cameraImage: CameraImageData): void
     {
@@ -85,7 +112,7 @@ export class EnvironmentEstimatorClient
         if (typeof this.response === 'object') {
             const u8 = new Uint8Array(this.response.result);
 
-            gl.bindTexture(GLConstants.TEXTURE_CUBE_MAP, this.texture);
+            gl.bindTexture(GLConstants.TEXTURE_CUBE_MAP, this.realtimeTexture);
             let index = 0;
             for (let i = 0; i <= LOG_SIZE; ++i) {
                 for (let k = 0; k < 6; ++k) {
@@ -148,5 +175,59 @@ export class EnvironmentEstimatorClient
         if (this.onPerformanceProfile) {
             this.onPerformanceProfile(data.performanceProfilingResult);
         }
+    }
+
+    updateStaticImage(images: CameraImageData[]): Promise<void>
+    {
+        return new Promise(resolve => {
+            const responseChannel = this.context.host.open<BlurInputOutput>();
+
+            const size = images[0].width;
+            let dataSize = 0;
+            for (let i = 0; i < NUM_STATIC_LEVELS; ++i) {
+                dataSize += ((size >> i) ** 2) * 4 * 6;
+            }
+
+            const u8 = new Uint8Array(dataSize);
+            for (let i = 0; i < 6; ++i) {
+                u8.set(images[i].data, i * ((size ** 2) * 4));
+            }
+
+            this.blurInOut.postMessage({
+                size, image: u8, channel: responseChannel.id,
+            }, [u8.buffer]);
+
+            responseChannel.onMessage = (data) => {
+                const {gl} = this.context.context;
+
+                const size = data.size;
+                const u8 = data.image;
+
+                gl.bindTexture(GLConstants.TEXTURE_CUBE_MAP, this.staticTexture);
+                let index = 0;
+                for (let i = 0; i < NUM_STATIC_LEVELS; ++i) {
+                    for (let k = 0; k < 6; ++k) {
+                        gl.texImage2D(GLConstants.TEXTURE_CUBE_MAP_POSITIVE_X + k, i,
+                            GLConstants.SRGB_ALPHA_EXT, size >> i, size >> i, 0,
+                            GLConstants.SRGB_ALPHA_EXT,
+                            GLConstants.UNSIGNED_BYTE,
+                            u8.subarray(index));
+                        index += ((size >> i) ** 2) * 4;
+                    }
+                }
+                for (let i = NUM_STATIC_LEVELS; i <= Math.log2(data.size); ++i) {
+                    for (let k = 0; k < 6; ++k) {
+                        gl.texImage2D(GLConstants.TEXTURE_CUBE_MAP_POSITIVE_X + k, i,
+                            GLConstants.SRGB_ALPHA_EXT, size >> i, size >> i, 0,
+                            GLConstants.SRGB_ALPHA_EXT,
+                            GLConstants.UNSIGNED_BYTE,
+                            null);
+                    }
+                }
+
+                responseChannel.close();
+                resolve();
+            };
+        });
     }
 }

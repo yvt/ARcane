@@ -72,7 +72,24 @@ export class LineGizmo
 
 export interface CameraImageData
 {
-    readonly data: Uint8Array;
+    readonly data: Uint8Array | Uint8ClampedArray;
     readonly width: number;
     readonly height: number;
+}
+
+export function createCameraImageDataFromImage(
+    image: HTMLImageElement | HTMLCanvasElement | HTMLVideoElement,
+    width?: number,
+    height?: number,
+): CameraImageData
+{
+    width = width || image.width;
+    height = height || image.height;
+
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext('2d')!;
+    context.drawImage(image, 0, 0, width, height);
+    return context.getImageData(0, 0, width, height);
 }

@@ -12,7 +12,9 @@ extern crate lazy_static;
 extern crate arcane_gfx;
 extern crate smallvec;
 
+mod blur;
 mod context;
+mod cubemaputils;
 
 use std::heap::{Heap, Alloc, Layout};
 use std::{ptr, mem};
@@ -94,4 +96,12 @@ pub unsafe fn emg_context_get_output_image_data(
 ) -> *const Vector4<u8> {
     let context: &Context = &*this;
     context.output_image(mip_level, cube_face).data.as_ptr()
+}
+
+#[no_mangle]
+pub unsafe fn emg_spherical_blur(
+    size: usize,
+    images: *mut Vector4<u8>,
+) {
+    blur::apply_spherical_blur(size, images)
 }

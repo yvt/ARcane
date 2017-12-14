@@ -12,49 +12,21 @@ use arcane_gfx::Image;
 use arcane_gfx::{stamp, blur};
 use arcane_gfx::cubemap::CUBE_FACES;
 
+use cubemaputils;
+
 const LOG_SIZE: usize = 6;
 const SIZE: usize = 1 << LOG_SIZE;
 
-static BLUR_KERNEL_SIGMA: f32 = 4.0;
-static BLUR_KERNEL_RATIO: f32 = 2.0;
-
 lazy_static! {
-    static ref DELINEARIZE_TABLE: Vec<u8> = (0..65536).map(|i| {
-        let norm = (i as f32) * (1.0 / 255.0 / 255.0);
-        let srgb = if norm < 0.0031308 {
-            norm * 12.92
-        } else {
-            1.055 * norm.powf(0.41666) - 0.055
-        };
-        (srgb * 255.0).min(255.0) as u8
-    }).collect();
-
-    static ref BLUR_KERNEL: Vec<f32> = blur::gaussian_kernel(
-        (BLUR_KERNEL_SIGMA * BLUR_KERNEL_RATIO) as usize,
-        BLUR_KERNEL_SIGMA
-    );
-
-    static ref BLUR_TABLE: Vec<(f32, usize)> = {
-        let mut last_variance = 0.0;
-        (0..5u8).map(|i| {
-            let size = SIZE >> i;
-            let sigma = (i as f32 - 5.0).exp2();
-
-            // The amount of blur applied on this stage
-            let res_sigma = (sigma * sigma - last_variance).sqrt();
-            last_variance = sigma * sigma;
-
-            // Upper bound of blur amount that can be applied by a single run of
-            // `spherical_blur_phase(..., {0, 1, 2}, ...)`
-            let sigma_limit = 0.5 / BLUR_KERNEL_RATIO;
-            let num_passes = (res_sigma * res_sigma / (sigma_limit * sigma_limit)).ceil();
-
-            let level_sigma = (res_sigma * res_sigma / num_passes).sqrt() *
-                size as f32 / BLUR_KERNEL_SIGMA;
-
-            (level_sigma, num_passes as usize)
-        }).collect()
-    };
+    static ref BLUR_SETUP: cubemaputils::MipPyramidGenSetup =
+        cubemaputils::MipPyramidGenParams {
+            kernel_resolution: 4.0,
+            kernel_width: 2.0,
+            log2_min_sigma: -5.0,
+            num_levels: 5,
+            size: SIZE,
+            high_quality: false,
+        }.setup();
 }
 
 pub struct Context {
@@ -146,49 +118,14 @@ impl Context {
             }
         }
 
-        fn downsample_2x(dst: &mut [Vector4<f32>], src: &[Vector4<f32>], size: usize) {
-            for y in 0..size {
-                let src1 = &src[(y * 2) * (size * 2)..][0..size * 2];
-                let src2 = &src[(y * 2 + 1) * (size * 2)..][0..size * 2];
-                for (x, d) in dst[y * size..][0..size].iter_mut().enumerate() {
-                    *d = (src1[x * 2] + src1[x * 2 + 1] + src2[x * 2] + src2[x * 2 + 1]) * 0.25;
-                }
-            }
-        }
-
-        fn upsample_fill_hole_2x(dst: &mut [Vector4<f32>], src: &[Vector4<f32>], size: usize) {
-            for y in 0..size {
-                let dst12 = &mut dst[(y * 2) * (size * 2)..][0..size * 4];
-                let (dst1, dst2) = dst12.split_at_mut(size * 2);
-                for (x, &s) in src[y * size..][0..size].iter().enumerate() {
-                    {
-                        let w = dst1[x * 2].w;
-                        dst1[x * 2] += s * (1.0 - w);
-                    }
-                    {
-                        let w = dst1[x * 2 + 1].w;
-                        dst1[x * 2 + 1] += s * (1.0 - w);
-                    }
-                    {
-                        let w = dst2[x * 2].w;
-                        dst2[x * 2] += s * (1.0 - w);
-                    }
-                    {
-                        let w = dst2[x * 2 + 1].w;
-                        dst2[x * 2 + 1] += s * (1.0 - w);
-                    }
-                }
-            }
-        }
-
         // Generate mip levels
-        let kernel = &BLUR_KERNEL[..];
-        for (i, &(kernel_scale, num_passes)) in BLUR_TABLE.iter().enumerate() {
+        let kernel = &BLUR_SETUP.kernel[..];
+        for (i, &(kernel_scale, num_passes)) in BLUR_SETUP.levels.iter().enumerate() {
             let size = SIZE >> i;
             if i > 0 {
                 let (prev, cur) = env_cube_levels[i - 1..i + 1].split_first_mut().unwrap();
                 for (src_face, dst_face) in prev.iter().zip(cur[0].iter_mut()) {
-                    downsample_2x(&mut dst_face.data, &src_face.data, size);
+                    cubemaputils::downsample_2x(&mut dst_face.data, &src_face.data, size);
                 }
             }
 
@@ -249,18 +186,18 @@ impl Context {
         }
 
         // Fill in the holes
-        for i in (1..BLUR_TABLE.len()).rev() {
+        for i in (1..BLUR_SETUP.levels.len()).rev() {
             let size = SIZE >> i;
             let (prev, cur) = env_cube_levels[i - 1..i + 1].split_first_mut().unwrap();
             for (src_face, dst_face) in cur[0].iter_mut().zip(prev.iter_mut()) {
-                upsample_fill_hole_2x(&mut dst_face.data, &src_face.data, size);
+                cubemaputils::upsample_fill_hole_2x(&mut dst_face.data, &src_face.data, size);
             }
         }
 
         // Convert to the target image format
-        let table = &DELINEARIZE_TABLE[0..0x10000];
+        let table = &cubemaputils::DELINEARIZE_TABLE[0..0x10000];
         for (src_level, dst_level) in
-            env_cube_levels[0..BLUR_TABLE.len()].iter().zip(
+            env_cube_levels[0..BLUR_SETUP.levels.len()].iter().zip(
                 self.converted_cube_levels.iter_mut(),
             )
         {

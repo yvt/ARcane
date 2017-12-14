@@ -10,6 +10,14 @@ export interface EnvironmentEstimatorParam
 {
     environmentEstimatorInput: ChannelId<EnvironmentEstimatorInput>;
     environmentEstimatorOutput: ChannelId<EnvironmentEstimatorOutput>;
+    blurInputOutput: ChannelId<BlurInputOutput>;
+}
+
+export interface BlurInputOutput
+{
+    size: number;
+    image: Uint8Array;
+    channel: ChannelId<BlurInputOutput>;
 }
 
 export interface EnvironmentEstimatorInput
@@ -36,4 +44,6 @@ export const enum EnvironmentEstimatorConstants
 {
     LOG_SIZE = 6,
     SIZE = 1 << LOG_SIZE,
+
+    NUM_STATIC_LEVELS = 5,
 }

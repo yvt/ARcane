@@ -14,7 +14,7 @@ import { LogManager, Logger } from '../utils/logger';
 import { RaytraceHit, raytrace } from '../model/raytrace';
 
 import { Renderer } from '../draw/main';
-import { LineGizmo, LineStyle, CameraImageData } from '../draw/model';
+import { LineGizmo, LineStyle, CameraImageData, createCameraImageDataFromImage } from '../draw/model';
 import { ProfilerResult } from '../draw/profiler';
 import { createWorkerClient } from '../workerclient';
 
@@ -651,6 +651,11 @@ export class ViewportPersistent implements IDisposable
             this.orientationListener[0]!.dispose();
         }
         this.orientationListener = null;
+    }
+
+    setEnvironmentalImage(images: HTMLImageElement[])
+    {
+        return this.renderer.setEnvironmentalImage(images.map(i => createCameraImageDataFromImage(i)));
     }
 
     dispose(): void

@@ -6,6 +6,7 @@
  */
 import * as React from 'react';
 import bind from 'bind-decorator';
+const loadImage: (path: string) => Promise<HTMLImageElement> = require('image-promise');
 
 import { LogManager } from '../utils/logger';
 import { Viewport } from './viewport';
@@ -20,6 +21,14 @@ import { LocalDataStorage } from '../storage/local';
 import { LocalWork } from '../storage/localwork';
 
 const classNames = require('./app.less');
+const envImages: string[] = [
+    require('file-loader!../../rust/arcane_gfx/examples/images/posx.jpg'),
+    require('file-loader!../../rust/arcane_gfx/examples/images/negx.jpg'),
+    require('file-loader!../../rust/arcane_gfx/examples/images/posy.jpg'),
+    require('file-loader!../../rust/arcane_gfx/examples/images/negy.jpg'),
+    require('file-loader!../../rust/arcane_gfx/examples/images/posz.jpg'),
+    require('file-loader!../../rust/arcane_gfx/examples/images/negz.jpg'),
+];
 
 export interface AppProps
 {
@@ -29,7 +38,9 @@ export interface AppProps
 interface State
 {
     fatalError: string | null;
-    initializationStage: 'db' | 'load-work' | null;
+        // These initialization stages can be performed in a concurrent fashion
+    initStorage: 'db' | 'load-work' | null,
+    initEnvImage: 'load-env-image' | 'process-env-image' | null,
     savingWork: Work | null;
 
     storage: LocalDataStorage | null;
@@ -50,7 +61,8 @@ export class App extends React.Component<AppProps, State>
 
         this.state = {
             fatalError: null,
-            initializationStage: 'db',
+            initStorage: 'db',
+            initEnvImage: 'load-env-image',
             savingWork: null,
 
             storage: null,
@@ -68,30 +80,47 @@ export class App extends React.Component<AppProps, State>
         });
     }
 
-    private async initialize(): Promise<void>
+    private initialize(): Promise<any>
     {
-        let storage = await LocalDataStorage.instance;
-        this.setState({
-            initializationStage: 'load-work',
-            storage,
-        });
+        return Promise.all([
+            (async () => {
+                // Storage operations
+                let storage = await LocalDataStorage.instance;
+                this.setState({
+                    initStorage: 'load-work',
+                    storage,
+                });
 
-        // DEUBG: just use a pre-determined document name for now
-        const localWork = await storage.works.open('default', false)
-            .catch(() => storage.works.open('default', true));
-        const editorState = {
-            ...this.state.editorState,
-            workspace: {
-                work: localWork.work,
-                history: EditHistoryState.createEmpty(),
-            },
-        };
-        this.setState({
-            initializationStage: null,
-            localWork,
-            editorState,
-            lastSavedEditorState: editorState,
-        });
+                // DEUBG: just use a pre-determined document name for now
+                const localWork = await storage.works.open('default', false)
+                    .catch(() => storage.works.open('default', true));
+                const editorState = {
+                    ...this.state.editorState,
+                    workspace: {
+                        work: localWork.work,
+                        history: EditHistoryState.createEmpty(),
+                    },
+                };
+                this.setState({
+                    initStorage: null,
+                    localWork,
+                    editorState,
+                    lastSavedEditorState: editorState,
+                });
+            })(),
+            (async () => {
+                // Load the environmental image
+                const images = await Promise.all(envImages.map(loadImage));
+
+                // Process and upload the environmental image to GPU
+                // This process takes a while because of the amount of processing
+                // required to generate the mip pyramid.
+                this.setState({ initEnvImage: 'process-env-image' });
+                await this.state.viewportPersistent.setEnvironmentalImage(images);
+
+                this.setState({ initEnvImage: null });
+            })(),
+        ]);
     }
 
     @bind
@@ -134,13 +163,22 @@ export class App extends React.Component<AppProps, State>
     {
         const {state, props} = this;
 
+        // If multiple initialization routines are running, just choose one of
+        // them
         let stageName = null;
-        switch (state.initializationStage) {
+        const stage = state.initStorage || state.initEnvImage;
+        switch (stage) {
             case 'db':
                 stageName = 'Reticulating bezier splines';
                 break;
             case 'load-work':
                 stageName = 'Loading the workspace';
+                break;
+            case 'load-env-image':
+                stageName = 'Loading assets';
+                break;
+            case 'process-env-image':
+                stageName = 'Materializing the Elements of Harmony';
                 break;
         }
 
@@ -167,7 +205,7 @@ export class App extends React.Component<AppProps, State>
                     </section>
             }
             {
-                state.fatalError == null && state.initializationStage != null &&
+                state.fatalError == null && stage != null &&
                     <section className={classNames.splash}>
                         <p>{stageName}</p>
                     </section>

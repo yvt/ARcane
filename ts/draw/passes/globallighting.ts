@@ -161,7 +161,9 @@ class GlobalLightingOperator implements RenderOperator
         if (this.enableAR) {
             params.cameraTexture!.texture = cameraImage.texture;
             params.cameraTextureMat = scene.cameraTextureMatrix;
-            params.envTexture!.texture = pass.context.environmentEstimator.texture;
+            params.envTexture.texture = pass.context.environmentEstimator.realtimeTexture;
+        } else {
+            params.envTexture.texture = pass.context.environmentEstimator.staticTexture;
         }
         mat4.multiply(params.worldToEnvMat, scene.viewToEnvMatrix, scene.viewMatrix);
 
@@ -192,7 +194,7 @@ interface GlobalLightingShaderParam
     readonly g1Texture: TextureShaderParameter;
     readonly ssaoTexture: TextureShaderParameter;
     readonly cameraTexture: TextureShaderParameter | null;
-    readonly envTexture: TextureShaderParameter | null;
+    readonly envTexture: TextureShaderParameter;
     depthNear: number;
     depthFar: number;
 }
@@ -230,7 +232,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
     readonly g1Texture: Texture2DShaderObject;
     readonly ssaoTexture: Texture2DShaderObject;
     readonly cameraTexture: Texture2DShaderObject | null = null;
-    readonly envTexture: TextureCubeShaderObject | null = null;
+    readonly envTexture: TextureCubeShaderObject;
     readonly voxelData: VoxelDataShaderObject;
 
     constructor(builder: ShaderBuilder, flags: ShaderFlags)
@@ -241,8 +243,8 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
         this.ssaoTexture = new Texture2DShaderObject(builder, 'mediump');
         if (flags & ShaderFlags.ENABLE_AR) {
             this.cameraTexture = new Texture2DShaderObject(builder, 'mediump');
-            this.envTexture = new TextureCubeShaderObject(builder, 'mediump');
         }
+        this.envTexture = new TextureCubeShaderObject(builder, 'mediump');
         this.voxelData = new VoxelDataShaderObject(builder);
 
         const constants = builder.requireModule(ConstantsShaderModuleFactory);
@@ -253,7 +255,7 @@ class GlobalLightingShaderModule extends ShaderModule<GlobalLightingShaderInstan
             g1Texture: this.g1Texture.u_Texture,
             ssaoTexture: this.ssaoTexture.u_Texture,
             cameraTexture: (this.cameraTexture && this.cameraTexture.u_Texture) || '',
-            envTexture: (this.envTexture && this.envTexture.u_Texture) || '',
+            envTexture: this.envTexture.u_Texture,
             fetchVoxelDensity: this.voxelData.fetchVoxelDensity,
             fetchVoxelMaterial: this.voxelData.fetchVoxelMaterial,
             PI: constants.PI,
@@ -287,7 +289,7 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
     private readonly g1Texture: Texture2DShaderInstance;
     private readonly ssaoTexture: Texture2DShaderInstance;
     private readonly cameraTexture: Texture2DShaderInstance | null;
-    private readonly envTexture: TextureCubeShaderInstance | null;
+    private readonly envTexture: TextureCubeShaderInstance;
     private readonly voxelData: VoxelDataShaderInstance;
 
     private readonly u_CameraTexMatrix: WebGLUniformLocation | null;
@@ -309,7 +311,7 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
         this.g1Texture = builder.getUnwrap(parent.g1Texture);
         this.ssaoTexture = builder.getUnwrap(parent.ssaoTexture);
         this.cameraTexture = parent.cameraTexture && builder.getUnwrap(parent.cameraTexture);
-        this.envTexture = parent.envTexture && builder.getUnwrap(parent.envTexture);
+        this.envTexture = builder.getUnwrap(parent.envTexture);
         this.voxelData = builder.getUnwrap(parent.voxelData);
     }
 
@@ -324,7 +326,7 @@ class GlobalLightingShaderInstance extends ShaderModuleInstance<GlobalLightingSh
             g1Texture: builder.getUnwrap(this.g1Texture),
             ssaoTexture: builder.getUnwrap(this.ssaoTexture),
             cameraTexture: this.cameraTexture && builder.getUnwrap(this.cameraTexture),
-            envTexture: this.envTexture && builder.getUnwrap(this.envTexture),
+            envTexture: builder.getUnwrap(this.envTexture),
             depthNear: 0,
             depthFar: 0,
         };

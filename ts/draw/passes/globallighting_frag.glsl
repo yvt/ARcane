@@ -170,31 +170,35 @@ void main() {
     if (metallic) {
         env_specular += base_color * (1.0 - env_specular_dielectric);
     }
-#if ENABLE_AR
     mediump vec3 ws_reflection = reflect(-ws_view, ws_normal);
+#if ENABLE_AR
     mediump vec3 es_reflection = (u_WorldToEnvMatrix * vec4(ws_reflection, 0.0)).xyz;
+#else
+    mediump vec3 es_reflection = ws_reflection;
+#endif
     // env_image_spec_lod = log2(1024 / (power * 0.25)) / 2 = 6 - log2(power) * 0.5 = 6 - 6.5 * gloss
     mediump float env_image_spec_lod = min(6.0 - 6.5 * gloss, 4.0);
     mediump vec3 env_image_specular = textureCubeLodEXT(envTexture, es_reflection, env_image_spec_lod).xyz;
+#if !ENABLE_AR
+    env_image_specular *= 1.5; // exposure adjustment (because env map is not HDR)
+#endif
     env_image_specular *= env_image_specular; // gamma correction
     accumulated += (env_image_specular * ssao + radiosity) * env_specular;
-#else
-    mediump vec3 env_image = mix(floor_color * 0.4, scene_color * 0.6, ws_normal.y * 0.5 + 0.5);
-    accumulated += (env_image * ssao + radiosity) * env_specular;
-#endif
 
     // ### Diffuse
     if (!metallic) {
         mediump vec3 env_diffuse = base_color * (1.0 - env_specular_dielectric);
 #if ENABLE_AR
         mediump vec3 es_normal = (u_WorldToEnvMatrix * vec4(ws_normal, 0.0)).xyz;
+#else
+        mediump vec3 es_normal = ws_normal;
+#endif
         mediump vec3 es_img_diffuse = textureCubeLodEXT(envTexture, es_normal, 4.0).xyz;
+#if !ENABLE_AR
+        es_img_diffuse *= 1.5; // exposure adjustment (because env map is not HDR)
+#endif
         es_img_diffuse *= es_img_diffuse; // gamma correction
         accumulated += (es_img_diffuse * ssao + radiosity) * env_diffuse;
-#else
-        // (Use the same `env_image` for now...)
-        accumulated += (env_image * ssao + radiosity) * env_diffuse;
-#endif
     }
 
     gl_FragColor = vec4(sqrt(accumulated), 1.0);

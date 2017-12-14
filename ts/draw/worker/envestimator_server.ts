@@ -15,7 +15,8 @@ const envmapgenModule: (imports?: any) => Promise<WebAssembly.ResultObject> =
 import { table, assertEq } from '../../utils/utils';
 import { Host, Channel } from '../../utils/workertransport';
 import {
-    EnvironmentEstimatorParam, EnvironmentEstimatorInput, EnvironmentEstimatorOutput, EnvironmentEstimatorConstants
+    EnvironmentEstimatorParam, EnvironmentEstimatorInput, EnvironmentEstimatorOutput, EnvironmentEstimatorConstants,
+    BlurInputOutput,
 } from './envestimator';
 
 const LOG_SIZE = EnvironmentEstimatorConstants.LOG_SIZE;
@@ -46,6 +47,8 @@ interface EnvmapgenExports
         mip_level: number,
         cube_face: number,
     ): Ptr;
+
+    emg_spherical_blur(size: number, images: Ptr): void;
 }
 
 const RESULT_BUFFER_SIZE = (() => {
@@ -71,12 +74,15 @@ class EnvironmentEstimator
         };
     }>;
 
-    constructor(param: EnvironmentEstimatorParam, host: Host)
+    constructor(param: EnvironmentEstimatorParam, private host: Host)
     {
         const input = host.getUnwrap(param.environmentEstimatorInput);
         input.onMessage = this.handleInput;
 
         this.output = host.getUnwrap(param.environmentEstimatorOutput);
+
+        const blurInOut = host.getUnwrap(param.blurInputOutput);
+        blurInOut.onMessage = this.handleBlurRequest;
 
         this.envmapgen = (async () => {
             const helper = new WasmHelper();
@@ -96,6 +102,24 @@ class EnvironmentEstimator
                 cameraImageBuffer: null,
             };
         })();
+    }
+
+    @bind
+    private async handleBlurRequest(data: BlurInputOutput): Promise<void>
+    {
+        const emg = await this.envmapgen;
+        const emgExports: EnvmapgenExports = emg.instance.exports;
+        const bufferPtr = emgExports.emg_malloc(data.image.length);
+
+        new Uint8Array(emgExports.memory.buffer, bufferPtr, data.image.length)
+            .set(data.image);
+
+        emgExports.emg_spherical_blur(data.size, bufferPtr);
+
+        data.image.set(new Uint8Array(emgExports.memory.buffer, bufferPtr, data.image.length));
+
+        // Send back the result
+        this.host.getUnwrap(data.channel).postMessage(data, [data.image.buffer]);
     }
 
     @bind

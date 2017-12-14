@@ -194,6 +194,12 @@ export class Renderer
         this.environmentEstimator.update(data);
     }
 
+    /** Specifies the environmental cube map for the non-AR mode. */
+    setEnvironmentalImage(data: CameraImageData[])
+    {
+        return this.environmentEstimator.updateStaticImage(data);
+    }
+
     private profileCallback: ((result: string) => void) | null = null;
     private gpuProfileText = '';
     private eeProfileText = '';
