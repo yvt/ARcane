@@ -19,6 +19,7 @@ varying highp vec4 v_ScreenCoord;
 varying mediump vec4 v_Color;
 
 void main() {
+    discard;
     highp vec3 screen_coords = v_ScreenCoord.xyz /* / v_ScreenCoord.w */;
     highp vec2 ts_screen = screen_coords.xy;
     mediump float cs_depth = screen_coords.z;

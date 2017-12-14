@@ -83,6 +83,9 @@ bool voxelTrace(
         return false;
     }
 
+    // DEBUG
+    return false;
+
     highp float rayLen = length(rayEnd - rayStart);
     mediump float dens = 0.0;
 

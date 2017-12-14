@@ -39,73 +39,72 @@ uniform mediump mat4 u_WorldToEnvMatrix;
 
 uniform highp vec2 u_DepthRange;
 
+// DEBUG
+#pragma global traceSphere
+bool traceSphere(highp vec3 start, highp vec3 dir, out highp vec3 normal) {
+    highp float t = pow(dot(dir, start), 2.0) - dot(start, start) + 1.0;
+    if (t >= 0.0) {
+        highp float d = -dot(dir, start) - sqrt(t);
+        normal = start + dir * d;
+        return true;
+    }
+    return false;
+}
+
+// DEBUG
+#pragma global acesToneMapping
+mediump vec3 acesToneMapping(mediump vec3 x)
+{
+    return clamp((x * (2.51 * x + 0.03)) / (x * (2.43 * x + 0.59) + 0.14), 0.0, 1.0);
+}
+
 void main() {
     mediump vec3 scene_color = vec3(0.1, 0.12, 0.2);
     mediump vec3 floor_color = (scene_color + 0.05) * 0.8;
-    mediump vec3 ws_light_dir = normalize(vec3(0.3, 1.0, 0.3));
+    mediump vec3 ws_light_dir = normalize(vec3(0.8, 1.0, 0.4));
 
-#if ENABLE_AR
-    mediump vec3 camera_image = texture2D(cameraTexture, v_CameraTexCoord).xyz;
-#endif
-
-    // # Fetch GBuffer 1
-    mediump vec4 g1 = texture2D(g1Texture, v_TexCoord);
-
-    if (g1.x == u_DepthRange.y) {
-        // If the depth value indicates the far plane, render the background (gradient)
-#if ENABLE_AR
-        gl_FragColor = vec4(camera_image, 1.0);
-#else
-        mediump vec3 color = scene_color * (g1.z * 0.5 + 0.5);
-        gl_FragColor = vec4(sqrt(color), 1.0);
-#endif
-        return;
-    }
-
+    // DEBUG
     mediump vec4 ssao_radiosity = texture2D(ssaoTexture, v_TexCoord);
-    mediump float ssao = ssao_radiosity.w;
-    mediump vec3 radiosity = ssao_radiosity.xyz;
+    mediump float ssao = 1.0;
+    mediump vec3 radiosity = vec3(0.0);
 
-    // Linearize & enhance
-    radiosity *= radiosity;
+    mediump vec3 ws_view = -normalize(v_WSView); // Oriented so that dot(ws_view, ws_normal) >= 0
 
-    const mediump float floor_diffuse = 0.1;
+    mediump vec3 rayStart = vec3(0.0, 0.0, 16.0);
+    mediump vec3 rayDir = -ws_view;
 
-    if (g1.z == -1.0) {
-        // Floor
-#if ENABLE_AR
-        gl_FragColor = vec4(camera_image * sqrt(ssao), 1.0);
-#else
-        mediump vec3 color = floor_color * (ssao * mix(0.2, 0.5, g1.y));
-        gl_FragColor = vec4(sqrt(color), 1.0);
-#endif
-        return;
-    }
-
-    // Extract the attributes from G1
-    mediump float u14a = u14fp16Decode(g1.y);
-    mediump float u14b = u14fp16Decode(g1.z);
-
-    mediump vec3 hit_voxel;
-    hit_voxel.x = fract(u14a / 1024.0) * 1024.0;
-    hit_voxel.z = fract(u14b / 1024.0) * 1024.0;
-    hit_voxel.y = floor(u14a / 1024.0) + floor(u14b / 1024.0) * 16.0;
-
-    bool receieve_light = g1.w > 4.0;
-    mediump vec3 ws_normal = cubeFaceToNormal(g1.w - (receieve_light ? 8.0 : 0.0));
+    mediump vec3 ws_normal;
 
     // # Fetch and decode material data
-    mediump vec4 material = fetchVoxelMaterial(hit_voxel);
-    mediump vec3 base_color = material.xyz * material.xyz;
-    mediump float rough_metal = floor(material.w * 255.0 + 0.5);
-    mediump float gloss = fract(rough_metal / 64.0);
-    mediump float material_id = floor(rough_metal / 64.0);
+    mediump vec3 base_color = vec3(0.8);
+    mediump float gloss = -0.1;
+    mediump float material_id = 1.0;
     mediump float rf_0 = 0.04;
+    bool receieve_light = false;
+
+    for (mediump float y = 0.0; y <= 1.0; y += 1.0) {
+        for (mediump float x = 0.0; x <= 8.0; x += 1.0) {
+            if (traceSphere(rayStart + vec3(x - 4.0, (y - 0.5), 0.0) * 2.5, rayDir, ws_normal)) {
+                gloss = x / 8.0 * 0.8 + 0.1;
+                material_id = y;
+                if (y == 0.0) {
+                    base_color = vec3(0.4, 0.6, 0.9);
+                }
+                break;
+            }
+        }
+    }
+
+    if (gloss < 0.0) {
+        gl_FragColor.xyz = textureCubeLodEXT(envTexture, -ws_view, 1.0).xyz * 2.0;
+        gl_FragColor.xyz = sqrt(acesToneMapping(gl_FragColor.xyz));
+        gl_FragColor.w = 1.0;
+        return;
+    }
 
     bool metallic = material_id != 0.0;
 
     // # Perform shading
-    mediump vec3 ws_view = -normalize(v_WSView); // Oriented so that dot(ws_view, ws_normal) >= 0
     mediump vec3 accumulated = vec3(0.0);
     mediump float dot_nv = dot(ws_normal, ws_view);
 
@@ -147,7 +146,7 @@ void main() {
     }
 #if ENABLE_AR
     // Attenuate the punctual light so environmental light is more emphasized
-    accumulated *= 0.3;
+    accumulated *= 0.1;
 #endif
 
     // ## Ambient light
@@ -180,7 +179,7 @@ void main() {
     mediump float env_image_spec_lod = min(6.0 - 6.5 * gloss, 4.0);
     mediump vec3 env_image_specular = textureCubeLodEXT(envTexture, es_reflection, env_image_spec_lod).xyz;
 #if !ENABLE_AR
-    env_image_specular *= 1.5; // exposure adjustment (because env map is not HDR)
+    env_image_specular *= 2.0; // exposure adjustment (because env map is not HDR)
 #endif
     env_image_specular *= env_image_specular; // gamma correction
     accumulated += (env_image_specular * ssao + radiosity) * env_specular;
@@ -195,12 +194,12 @@ void main() {
 #endif
         mediump vec3 es_img_diffuse = textureCubeLodEXT(envTexture, es_normal, 4.0).xyz;
 #if !ENABLE_AR
-        es_img_diffuse *= 1.5; // exposure adjustment (because env map is not HDR)
+        es_img_diffuse *= 2.0; // exposure adjustment (because env map is not HDR)
 #endif
         es_img_diffuse *= es_img_diffuse; // gamma correction
         accumulated += (es_img_diffuse * ssao + radiosity) * env_diffuse;
     }
 
-    gl_FragColor = vec4(sqrt(accumulated), 1.0);
+    gl_FragColor = vec4(sqrt(acesToneMapping(accumulated)), 1.0);
 }
 

@@ -395,8 +395,8 @@ export class ViewportPersistent implements IDisposable
         // Use the parent element's bounding rect so it won't be affected by
         // the scaling
         const rect = canvas.parentElement!.getBoundingClientRect();
-        const newWidth = Math.max(1, rect.width) | 0;
-        const newHeight = Math.max(1, rect.height) | 0;
+        const newWidth = Math.max(1, rect.width * window.devicePixelRatio) | 0;
+        const newHeight = Math.max(1, rect.height * window.devicePixelRatio) | 0;
         if (newWidth == canvas.width && newHeight == canvas.height) {
             if (!render) {
                 return;
