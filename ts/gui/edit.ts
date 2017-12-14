@@ -174,7 +174,7 @@ class EditImpl extends Edit
 
     saveOriginal(work: Work, min: ArrayLike<number>, max: ArrayLike<number>)
     {
-        assert(min[0] >= 0); assert(min[1] >= 0); assert(min[2] >= 2);
+        assert(min[0] >= 0); assert(min[1] >= 0); assert(min[2] >= 0);
         assert(max[0] <= Layout.SIZE); assert(max[1] <= Layout.SIZE); assert(max[2] <= Layout.SIZE);
         assert(work.data.data != null);
 
