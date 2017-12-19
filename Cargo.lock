@@ -110,6 +110,7 @@ version = "0.1.0"
 dependencies = [
  "arcane_gfx 0.1.0",
  "cgmath 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "hyperenvmap 0.1.0 (git+https://github.com/Hyper3D/hyper3d-envmapgen?rev=25cc54846aafdd55a8d86429d7d51f7f948ee0fe)",
  "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "smallvec 0.5.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
@@ -135,6 +136,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 dependencies = [
  "color_quant 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "lzw 0.10.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "hyperenvmap"
+version = "0.1.0"
+source = "git+https://github.com/Hyper3D/hyper3d-envmapgen?rev=25cc54846aafdd55a8d86429d7d51f7f948ee0fe#25cc54846aafdd55a8d86429d7d51f7f948ee0fe"
+dependencies = [
+ "cgmath 0.15.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "lazy_static 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
 
 [[package]]
@@ -369,6 +379,7 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 "checksum fuchsia-zircon 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "bd510087c325af53ba24f3be8f1c081b0982319adcb8b03cad764512923ccc19"
 "checksum fuchsia-zircon-sys 0.3.2 (registry+https://github.com/rust-lang/crates.io-index)" = "08b3a6f13ad6b96572b53ce7af74543132f1a7055ccceb6d073dd36c54481859"
 "checksum gif 0.9.2 (registry+https://github.com/rust-lang/crates.io-index)" = "e2e41945ba23db3bf51b24756d73d81acb4f28d85c3dccc32c6fae904438c25f"
+"checksum hyperenvmap 0.1.0 (git+https://github.com/Hyper3D/hyper3d-envmapgen?rev=25cc54846aafdd55a8d86429d7d51f7f948ee0fe)" = "<none>"
 "checksum image 0.17.0 (registry+https://github.com/rust-lang/crates.io-index)" = "d1576ffa01849c91b484b95c01d54dddc242b4d50923eaa2d4d74a58c4b9e8fd"
 "checksum inflate 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)" = "10ec05638adf7c5c788bc0cfa608cd479a13572beda20feb4898fe1d85d2c64b"
 "checksum jpeg-decoder 0.1.13 (registry+https://github.com/rust-lang/crates.io-index)" = "2805ccb10ffe4d10e06ef68a158ff94c255211ecbae848fbde2146b098f93ce7"

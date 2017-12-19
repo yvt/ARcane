@@ -5,7 +5,7 @@
  * comes with the source code for use conditions.
  */
 use cgmath::Vector4;
-use arcane_gfx::blur;
+use hyperenvmap::ltasgblur;
 
 lazy_static! {
     pub static ref DELINEARIZE_TABLE: Vec<u8> = (0..65536).map(|i| {
@@ -80,7 +80,7 @@ pub struct MipPyramidGenSetup {
 
 impl MipPyramidGenParams {
     pub fn setup(&self) -> MipPyramidGenSetup {
-        let kernel = blur::gaussian_kernel(
+        let kernel = ltasgblur::gaussian_kernel(
             (self.kernel_resolution * self.kernel_width) as usize,
             self.kernel_resolution,
         );

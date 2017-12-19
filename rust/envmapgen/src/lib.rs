@@ -11,6 +11,7 @@ extern crate cgmath;
 extern crate lazy_static;
 extern crate arcane_gfx;
 extern crate smallvec;
+extern crate hyperenvmap;
 
 mod blur;
 mod context;

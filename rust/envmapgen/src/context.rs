@@ -9,8 +9,10 @@ use cgmath::prelude::*;
 use smallvec::SmallVec;
 
 use arcane_gfx::Image;
-use arcane_gfx::{stamp, blur};
+use arcane_gfx::stamp;
 use arcane_gfx::cubemap::CUBE_FACES;
+
+use hyperenvmap::ltasgblur;
 
 use cubemaputils;
 
@@ -131,7 +133,7 @@ impl Context {
 
             let ref mut cur = env_cube_levels[i];
             for _ in 0..num_passes {
-                blur::spherical_blur_phase(
+                ltasgblur::ltasg_single(
                     temp1
                         .iter_mut()
                         .map(Vec::as_mut_slice)
@@ -145,10 +147,10 @@ impl Context {
                     kernel,
                     kernel_scale,
                     0,
-                    blur::StandardCubeMapTrait,
+                    ltasgblur::StandardCubeMapTrait,
                 );
 
-                blur::spherical_blur_phase(
+                ltasgblur::ltasg_single(
                     temp2
                         .iter_mut()
                         .map(Vec::as_mut_slice)
@@ -163,10 +165,10 @@ impl Context {
                     kernel,
                     kernel_scale,
                     1,
-                    blur::StandardCubeMapTrait,
+                    ltasgblur::StandardCubeMapTrait,
                 );
 
-                blur::spherical_blur_phase(
+                ltasgblur::ltasg_single(
                     cur.iter_mut()
                         .map(|face| &mut face.data[..])
                         .collect::<SmallVec<[_; 6]>>()
@@ -180,7 +182,7 @@ impl Context {
                     kernel,
                     kernel_scale,
                     2,
-                    blur::StandardCubeMapTrait,
+                    ltasgblur::StandardCubeMapTrait,
                 );
             }
         }

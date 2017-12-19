@@ -9,7 +9,6 @@ extern crate cgmath;
 #[macro_use]
 extern crate lazy_static;
 
-pub mod blur;
 pub mod cubemap;
 pub mod stamp;
 mod accessor;

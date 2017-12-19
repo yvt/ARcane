@@ -9,7 +9,7 @@ use std::slice::from_raw_parts_mut;
 
 use cgmath::Vector4;
 use smallvec::SmallVec;
-use arcane_gfx::blur;
+use hyperenvmap::ltasgblur;
 
 use cubemaputils;
 
@@ -100,7 +100,7 @@ fn apply_spherical_blur_inner(size: usize, image_levels: &mut [&mut [&mut [Vecto
 
         for _ in 0..num_passes {
             for phase in 0..3 {
-                blur::spherical_blur_phase(
+                ltasgblur::ltasg_single(
                     tmp_buf2
                         .iter_mut()
                         .map(Vec::as_mut_slice)
@@ -115,7 +115,7 @@ fn apply_spherical_blur_inner(size: usize, image_levels: &mut [&mut [&mut [Vecto
                     kernel,
                     kernel_scale,
                     phase,
-                    blur::StandardCubeMapTrait,
+                    ltasgblur::StandardCubeMapTrait,
                 );
                 swap(&mut tmp_buf1, &mut tmp_buf2);
             }
